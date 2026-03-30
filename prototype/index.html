@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSVi — Biomechanics Database</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ===== Reset & Base ===== */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f0f2f5;--card:#fff;--primary:#2563eb;--primary-dark:#1d4ed8;
+  --accent:#7c3aed;--text:#1e293b;--muted:#64748b;--border:#e2e8f0;
+  --success:#10b981;--warning:#f59e0b;--danger:#ef4444;
+  --radius:10px;--shadow:0 1px 3px rgba(0,0,0,.08);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;min-height:100vh;display:flex;flex-direction:column}
+a{color:var(--primary);text-decoration:none}
+
+/* ===== Top Bar ===== */
+.topbar{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 50%,#7c3aed 100%);color:#fff;padding:12px 24px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.topbar h1{font-size:20px;font-weight:700;letter-spacing:-.5px}
+.topbar .subtitle{font-size:13px;opacity:.8}
+.topbar .stats{margin-left:auto;display:flex;gap:20px;font-size:13px}
+.topbar .stats span{opacity:.9}
+.topbar .stats strong{font-weight:600}
+
+/* ===== Layout ===== */
+.main-layout{display:flex;flex:1;overflow:hidden}
+.sidebar{width:280px;background:var(--card);border-right:1px solid var(--border);padding:16px;overflow-y:auto;flex-shrink:0}
+.content{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
+
+/* ===== Sidebar Filters ===== */
+.filter-section{margin-bottom:16px}
+.filter-section h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;font-weight:600}
+.filter-section select,.filter-section input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:#fff;color:var(--text)}
+.filter-section select:focus,.filter-section input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.filter-row{display:flex;gap:8px}
+.filter-row input{flex:1}
+.btn{padding:8px 16px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-secondary{background:var(--border);color:var(--text)}
+.btn-secondary:hover{background:#d1d5db}
+.btn-block{width:100%;margin-top:8px}
+.btn-sm{padding:5px 10px;font-size:12px}
+
+/* ===== Tabs ===== */
+.tabs{display:flex;gap:4px;background:var(--card);padding:6px;border-radius:var(--radius);box-shadow:var(--shadow)}
+.tab{padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);transition:all .15s;border:none;background:transparent}
+.tab:hover{color:var(--text);background:#f8fafc}
+.tab.active{background:var(--primary);color:#fff}
+
+/* ===== Cards ===== */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+.card h2{font-size:16px;font-weight:700;margin-bottom:12px;color:var(--text)}
+.card h3{font-size:14px;font-weight:600;margin-bottom:8px;color:var(--muted)}
+
+/* ===== KPI Row ===== */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.kpi{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);text-align:center}
+.kpi .value{font-size:28px;font-weight:700;color:var(--primary)}
+.kpi .label{font-size:12px;color:var(--muted);margin-top:2px}
+.kpi.good .value{color:var(--success)}
+.kpi.warn .value{color:var(--warning)}
+.kpi.bad .value{color:var(--danger)}
+
+/* ===== Data Table ===== */
+.table-wrap{overflow-x:auto;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f8fafc;text-align:left;padding:8px 12px;border-bottom:2px solid var(--border);font-weight:600;color:var(--muted);white-space:nowrap}
+td{padding:8px 12px;border-bottom:1px solid var(--border)}
+tr:hover td{background:#f8fafc}
+.lsi-cell{font-weight:600;border-radius:4px;padding:2px 8px;display:inline-block;min-width:48px;text-align:center}
+.lsi-good{background:#d1fae5;color:#065f46}
+.lsi-warn{background:#fef3c7;color:#92400e}
+.lsi-bad{background:#fee2e2;color:#991b1b}
+
+/* ===== Charts ===== */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.chart-box{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.chart-box h3{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px}
+.chart-box canvas{width:100%!important;max-height:280px}
+
+/* ===== Chat ===== */
+.chat-panel{display:flex;flex-direction:column;height:100%}
+.chat-messages{flex:1;overflow-y:auto;padding:8px 0;display:flex;flex-direction:column;gap:12px}
+.chat-msg{max-width:85%;padding:12px 16px;border-radius:12px;font-size:14px;line-height:1.6;white-space:pre-wrap}
+.chat-msg.user{align-self:flex-end;background:var(--primary);color:#fff;border-bottom-right-radius:4px}
+.chat-msg.assistant{align-self:flex-start;background:#f1f5f9;color:var(--text);border-bottom-left-radius:4px}
+.chat-msg.system{align-self:center;background:#fef3c7;color:#92400e;font-size:12px;padding:8px 12px}
+.chat-input-row{display:flex;gap:8px;margin-top:12px}
+.chat-input-row input{flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px}
+.chat-input-row input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.chat-suggestions{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.chat-suggestions button{background:#f1f5f9;border:1px solid var(--border);border-radius:16px;padding:5px 12px;font-size:12px;cursor:pointer;color:var(--muted)}
+.chat-suggestions button:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+.typing-indicator{color:var(--muted);font-size:13px;font-style:italic}
+
+/* ===== Tab Panels ===== */
+.tab-panel{display:none}
+.tab-panel.active{display:flex;flex-direction:column;gap:16px;flex:1}
+
+/* ===== Patient Input Form ===== */
+.patient-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group label{font-size:12px;font-weight:600;color:var(--muted)}
+.form-group input,.form-group select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px}
+
+/* ===== Metric Selector ===== */
+.metric-pills{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.metric-pill{padding:4px 10px;border-radius:12px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:#f8fafc;color:var(--muted);font-weight:500}
+.metric-pill.selected{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* ===== Responsive ===== */
+@media(max-width:900px){
+  .main-layout{flex-direction:column}
+  .sidebar{width:100%;border-right:none;border-bottom:1px solid var(--border)}
+  .chart-grid{grid-template-columns:1fr}
+}
+
+/* ===== Loading ===== */
+.loading{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+.spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ===== Top Bar ===== -->
+<div class="topbar">
+  <div>
+    <h1>OSVi Database</h1>
+    <div class="subtitle">Biomechanics Patient Population Explorer</div>
+  </div>
+  <div class="stats">
+    <span>Records: <strong id="stat-records">-</strong></span>
+    <span>Patients: <strong id="stat-patients">-</strong></span>
+    <span>Filtered: <strong id="stat-filtered">-</strong></span>
+  </div>
+</div>
+
+<!-- ===== Main Layout ===== -->
+<div class="main-layout">
+
+  <!-- Sidebar Filters -->
+  <div class="sidebar">
+    <div class="filter-section">
+      <h3>Population Filters</h3>
+    </div>
+    <div class="filter-section">
+      <h3>Age Range</h3>
+      <div class="filter-row">
+        <input type="number" id="f-age-min" placeholder="Min" min="14" max="60">
+        <input type="number" id="f-age-max" placeholder="Max" min="14" max="60">
+      </div>
+    </div>
+    <div class="filter-section">
+      <h3>Sex</h3>
+      <select id="f-sex"><option value="">All</option></select>
+    </div>
+    <div class="filter-section">
+      <h3>Sport</h3>
+      <select id="f-sport"><option value="">All</option></select>
+    </div>
+    <div class="filter-section">
+      <h3>Condition</h3>
+      <select id="f-symptom"><option value="">All</option></select>
+    </div>
+    <div class="filter-section">
+      <h3>Injury Limb</h3>
+      <select id="f-limb"><option value="">All</option></select>
+    </div>
+    <div class="filter-section">
+      <h3>Post-Surgery Months</h3>
+      <select id="f-months"><option value="">All</option></select>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="applyFilters()">Apply Filters</button>
+    <button class="btn btn-secondary btn-block" onclick="resetFilters()">Reset</button>
+
+    <div class="filter-section" style="margin-top:24px">
+      <h3>Select Metrics</h3>
+      <div id="metric-selector" class="metric-pills"></div>
+    </div>
+  </div>
+
+  <!-- Content Area -->
+  <div class="content">
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="reporting" onclick="switchTab('reporting')">Population Report</button>
+      <button class="tab" data-tab="similar" onclick="switchTab('similar')">Similar Patients</button>
+      <button class="tab" data-tab="recovery" onclick="switchTab('recovery')">Recovery Trajectory</button>
+      <button class="tab" data-tab="chat" onclick="switchTab('chat')">AI Assistant</button>
+    </div>
+
+    <!-- ====== TAB 1: Population Reporting ====== -->
+    <div class="tab-panel active" id="panel-reporting">
+      <div class="kpi-row" id="kpi-container"></div>
+      <div class="card">
+        <h2>Summary Statistics</h2>
+        <div class="table-wrap"><table id="summary-table"><thead></thead><tbody></tbody></table></div>
+      </div>
+      <div class="chart-grid" id="chart-container"></div>
+    </div>
+
+    <!-- ====== TAB 2: Similar Patients ====== -->
+    <div class="tab-panel" id="panel-similar">
+      <div class="card">
+        <h2>Find Similar Patients</h2>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Enter your patient's profile to find the most similar cases in the database.</p>
+        <div class="patient-form">
+          <div class="form-group"><label>Age</label><input type="number" id="sim-age" value="30" min="14" max="60"></div>
+          <div class="form-group"><label>Sex</label><select id="sim-sex"><option value="">Any</option><option>Male</option><option>Female</option></select></div>
+          <div class="form-group"><label>Sport</label><select id="sim-sport"><option value="">Any</option></select></div>
+          <div class="form-group"><label>Condition</label><select id="sim-symptom"><option value="">Any</option></select></div>
+          <div class="form-group"><label>Injury Limb</label><select id="sim-limb"><option value="">Any</option><option>Left</option><option>Right</option></select></div>
+          <div class="form-group"><label>Post-Surgery Mo.</label><select id="sim-months"><option value="">Any</option></select></div>
+          <div class="form-group"><label>&nbsp;</label><button class="btn btn-primary" onclick="findSimilar()">Search</button></div>
+        </div>
+      </div>
+      <div class="card" id="similar-results" style="display:none">
+        <h2>Most Similar Patients <span id="similar-count" style="font-weight:400;color:var(--muted);font-size:14px"></span></h2>
+        <div class="table-wrap"><table id="similar-table"><thead></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ====== TAB 3: Recovery Trajectory ====== -->
+    <div class="tab-panel" id="panel-recovery">
+      <div class="card">
+        <h2>Recovery Trajectory Over Time</h2>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">
+          Shows population percentiles (25th, 50th, 75th) across post-surgery timepoints.
+          Use sidebar filters to narrow the population. The dashed red line marks the 90% return-to-sport threshold.
+        </p>
+        <div class="patient-form" style="margin-bottom:12px">
+          <div class="form-group">
+            <label>Patient ID (optional — overlay on charts)</label>
+            <input type="text" id="recovery-patient-id" placeholder="e.g. ACL00450">
+          </div>
+          <div class="form-group"><label>&nbsp;</label><button class="btn btn-primary" onclick="loadRecovery()">Load Trajectories</button></div>
+        </div>
+      </div>
+      <div id="recovery-charts" class="chart-grid"></div>
+    </div>
+
+    <!-- ====== TAB 4: AI Chat ====== -->
+    <div class="tab-panel" id="panel-chat">
+      <div class="card chat-panel" style="flex:1;min-height:500px">
+        <h2>OSVi AI Assistant</h2>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:8px">Ask any question about the patient population data. The assistant is aware of your current filter selections.</p>
+        <div class="chat-suggestions" id="chat-suggestions">
+          <button onclick="askSuggestion(this)">What's the average recovery for 6-month post-op ACLR basketball players?</button>
+          <button onclick="askSuggestion(this)">How does SL jump RSI compare between sports at 9 months?</button>
+          <button onclick="askSuggestion(this)">What percentage of patients meet the 90% LSI threshold by 12 months?</button>
+          <button onclick="askSuggestion(this)">Compare male vs female ACLR recovery across all timepoints</button>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-msg system">Welcome! I can query the OSVi database for you. Try one of the suggestions above, or type your own question.</div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" placeholder="Ask about the patient data..." onkeydown="if(event.key==='Enter')sendChat()">
+          <button class="btn btn-primary" onclick="sendChat()">Send</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main-layout -->
+
+<script>
+// ========================================================================
+// State
+// ========================================================================
+let demographics = {};
+let activeCharts = {};
+let selectedMetrics = [
+  "ExtIsoLSI_", "ExtConLSI_", "FleIsoLSI_", "FleConLSI_",
+  "LSI_jhSL_", "LSI_rsidj_SL_", "LSI_triforhop_", "LSI_sqcpp_"
+];
+
+const METRIC_LABELS = {
+  "ExtIsoLSI_":"Ext Isometric LSI","ExtConLSI_":"Ext Concentric LSI",
+  "ExtEccLSI_":"Ext Eccentric LSI","FleIsoLSI_":"Fle Isometric LSI",
+  "FleConLSI_":"Fle Concentric LSI","FleEccLSI_":"Fle Eccentric LSI",
+  "LSI_Isopt200_ext_":"Iso Pt200 Ext LSI","LSI_Isopt200_fle_":"Iso Pt200 Fle LSI",
+  "LSI_Jang_ext_":"Joint Angle Ext LSI","LSI_Jang_fle_":"Joint Angle Fle LSI",
+  "LSI_HQcc_":"H:Q cc LSI","LSI_HQec_":"H:Q ec LSI",
+  "PlLSI_":"Plantarflex LSI","AdLSI_":"Adduction LSI","AbLSI_":"Abduction LSI",
+  "LSI_EcDel_DLCMJ_":"DL CMJ EcDel LSI","LSI_ci_DL_":"DL CMJ CI LSI","LSI_pf_DL_":"DL CMJ PF LSI",
+  "LSI_dof_DL_":"DL DJ DOF LSI","LSI_pk_DLDJ_":"DL DJ Peak LSI",
+  "LSI_jhSL_":"SL Jump Height LSI","LSI_EcBra_SLCMJ_":"SL CMJ EcBra LSI",
+  "LSI_EcDel_SLCMJ_":"SL CMJ EcDel LSI","LSI_ci_SL_":"SL CMJ CI LSI",
+  "LSI_ciP1_SL_":"SL CMJ CI-P1 LSI","LSI_ciP2_SL_":"SL CMJ CI-P2 LSI",
+  "LSI_rsidj_SL_":"SL DJ RSI LSI","LSI_jhSL_dj_":"SL DJ JH LSI",
+  "LSI_ctSL_dj_":"SL DJ CT LSI","LSI_act_SL_dj_":"SL DJ ACT LSI","LSI_dof_SL_":"SL DJ DOF LSI",
+  "LSI_105rsi_SL_":"SL 10-5 RSI LSI","LSI_105jh_SL_":"SL 10-5 JH LSI","LSI_105ct_SL_":"SL 10-5 CT LSI",
+  "LSI_triforhop_":"Triple Hop LSI","LSI_sqcpp_":"SL Squat CPP LSI",
+  // Absolute metrics
+  "jhDL_":"DL CMJ Height","rsidj_DL_":"DL DJ RSI","jhSL_L_":"SL CMJ JH (L)","jhSL_R_":"SL CMJ JH (R)",
+  "HQcc_L_":"H:Q cc (L)","HQcc_R_":"H:Q cc (R)","HQec_L_":"H:Q ec (L)","HQec_R_":"H:Q ec (R)",
+};
+
+function metricLabel(m){ return METRIC_LABELS[m]||m.replace(/_/g,' ') }
+
+// ========================================================================
+// Init
+// ========================================================================
+async function init(){
+  const r = await fetch('/api/demographics');
+  demographics = await r.json();
+  document.getElementById('stat-records').textContent = demographics.total_records;
+  document.getElementById('stat-patients').textContent = demographics.total_patients;
+  document.getElementById('stat-filtered').textContent = demographics.total_records;
+
+  // Populate filter dropdowns
+  populateSelect('f-sex', demographics.sexes);
+  populateSelect('f-sport', demographics.sports);
+  populateSelect('f-symptom', demographics.symptoms);
+  populateSelect('f-limb', demographics.injury_limbs);
+  populateSelect('f-months', demographics.post_surgery_months);
+  // Similar patient dropdowns
+  populateSelect('sim-sport', demographics.sports);
+  populateSelect('sim-symptom', demographics.symptoms);
+  populateSelect('sim-months', demographics.post_surgery_months);
+
+  // Build metric selector pills
+  buildMetricSelector();
+
+  // Initial query
+  applyFilters();
+}
+
+function populateSelect(id, values){
+  const el = document.getElementById(id);
+  values.forEach(v=>{
+    const o = document.createElement('option');
+    o.value=v; o.textContent=v;
+    el.appendChild(o);
+  });
+}
+
+function buildMetricSelector(){
+  const container = document.getElementById('metric-selector');
+  const allMetrics = Object.keys(METRIC_LABELS);
+  allMetrics.forEach(m=>{
+    const pill = document.createElement('span');
+    pill.className = 'metric-pill' + (selectedMetrics.includes(m)?' selected':'');
+    pill.textContent = metricLabel(m);
+    pill.onclick = ()=>{
+      if(selectedMetrics.includes(m)){
+        selectedMetrics = selectedMetrics.filter(x=>x!==m);
+        pill.classList.remove('selected');
+      }else{
+        selectedMetrics.push(m);
+        pill.classList.add('selected');
+      }
+    };
+    container.appendChild(pill);
+  });
+}
+
+// ========================================================================
+// Filters
+// ========================================================================
+function getFilters(){
+  return {
+    age_min: document.getElementById('f-age-min').value||undefined,
+    age_max: document.getElementById('f-age-max').value||undefined,
+    sex: document.getElementById('f-sex').value||undefined,
+    sport: document.getElementById('f-sport').value||undefined,
+    symptom: document.getElementById('f-symptom').value||undefined,
+    injury_limb: document.getElementById('f-limb').value||undefined,
+    months: document.getElementById('f-months').value||undefined,
+  };
+}
+
+function resetFilters(){
+  ['f-age-min','f-age-max','f-sex','f-sport','f-symptom','f-limb','f-months'].forEach(id=>{
+    document.getElementById(id).value='';
+  });
+  applyFilters();
+}
+
+async function applyFilters(){
+  const filters = getFilters();
+  filters.metrics = selectedMetrics;
+  const r = await fetch('/api/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(filters)});
+  const data = await r.json();
+  document.getElementById('stat-filtered').textContent = data.n_records;
+  renderReportingTab(data);
+}
+
+// ========================================================================
+// Tab 1: Population Reporting
+// ========================================================================
+function renderReportingTab(data){
+  const summary = data.summary;
+  const metrics = Object.keys(summary);
+
+  // KPI cards
+  const kpiHtml = metrics.slice(0,6).map(m=>{
+    const s = summary[m];
+    if(!s) return '';
+    const isLSI = m.includes('LSI');
+    let cls = '';
+    if(isLSI){
+      cls = s.median>=90?'good':s.median>=80?'warn':'bad';
+    }
+    return `<div class="kpi ${cls}">
+      <div class="value">${s.median??'-'}</div>
+      <div class="label">${metricLabel(m)}<br>median (n=${s.n})</div>
+    </div>`;
+  }).join('');
+  document.getElementById('kpi-container').innerHTML = kpiHtml;
+
+  // Summary table
+  const thead = `<tr><th>Metric</th><th>N</th><th>Mean</th><th>SD</th><th>Min</th><th>P25</th><th>Median</th><th>P75</th><th>Max</th></tr>`;
+  const tbody = metrics.map(m=>{
+    const s = summary[m];
+    if(!s) return '';
+    return `<tr><td><strong>${metricLabel(m)}</strong></td><td>${s.n}</td><td>${s.mean}</td><td>${s.std}</td><td>${s.min}</td><td>${s.p25}</td><td>${s.median}</td><td>${s.p75}</td><td>${s.max}</td></tr>`;
+  }).join('');
+  document.querySelector('#summary-table thead').innerHTML = thead;
+  document.querySelector('#summary-table tbody').innerHTML = tbody;
+
+  // Charts — histogram for each metric
+  const chartContainer = document.getElementById('chart-container');
+  chartContainer.innerHTML = '';
+  // Destroy old charts
+  Object.values(activeCharts).forEach(c=>c.destroy());
+  activeCharts = {};
+
+  metrics.forEach(m=>{
+    const s = summary[m];
+    if(!s || !s.values || s.values.length===0) return;
+    const box = document.createElement('div');
+    box.className='chart-box';
+    box.innerHTML=`<h3>${metricLabel(m)} (n=${s.n})</h3><canvas id="chart-${m}"></canvas>`;
+    chartContainer.appendChild(box);
+
+    // Build histogram bins
+    const vals = s.values;
+    const bins = 20;
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const step = (max-min)/bins || 1;
+    const counts = new Array(bins).fill(0);
+    const labels = [];
+    for(let i=0;i<bins;i++){
+      const lo = min+i*step;
+      labels.push(lo.toFixed(1));
+      vals.forEach(v=>{ if(v>=lo && v<lo+step) counts[i]++ });
+    }
+    // Last bin inclusive
+    vals.forEach(v=>{ if(v===max) counts[bins-1]++ });
+
+    const isLSI = m.includes('LSI');
+    const barColors = counts.map((_,i)=>{
+      if(!isLSI) return 'rgba(37,99,235,0.6)';
+      const mid = min+(i+.5)*step;
+      return mid>=90?'rgba(16,185,129,0.6)':mid>=80?'rgba(245,158,11,0.6)':'rgba(239,68,68,0.6)';
+    });
+
+    activeCharts[m] = new Chart(document.getElementById('chart-'+m),{
+      type:'bar',
+      data:{labels, datasets:[{data:counts,backgroundColor:barColors,borderRadius:3}]},
+      options:{
+        plugins:{legend:{display:false},
+          annotation: isLSI ? undefined : undefined
+        },
+        scales:{
+          x:{title:{display:true,text:metricLabel(m)},ticks:{maxTicksLimit:8}},
+          y:{title:{display:true,text:'Count'},beginAtZero:true}
+        },
+        animation:{duration:300}
+      }
+    });
+  });
+}
+
+// ========================================================================
+// Tab 2: Similar Patients
+// ========================================================================
+async function findSimilar(){
+  const body = {
+    age: document.getElementById('sim-age').value||30,
+    sex: document.getElementById('sim-sex').value||undefined,
+    sport: document.getElementById('sim-sport').value||undefined,
+    symptom: document.getElementById('sim-symptom').value||undefined,
+    injury_limb: document.getElementById('sim-limb').value||undefined,
+    months: document.getElementById('sim-months').value||undefined,
+    top_n: 15
+  };
+  const r = await fetch('/api/similar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const data = await r.json();
+
+  const container = document.getElementById('similar-results');
+  container.style.display = 'block';
+  document.getElementById('similar-count').textContent = `(${data.patients.length} of ${data.n_matched} matched)`;
+
+  if(data.patients.length===0){
+    document.querySelector('#similar-table tbody').innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted)">No matching patients found. Try broadening your criteria.</td></tr>';
+    return;
+  }
+
+  const cols = Object.keys(data.patients[0]);
+  const thead = '<tr>'+cols.map(c=>`<th>${c.replace(/_/g,' ')}</th>`).join('')+'</tr>';
+  const tbody = data.patients.map(p=>{
+    return '<tr>'+cols.map(c=>{
+      let v = p[c];
+      if(v===null) return '<td>-</td>';
+      // Color LSI cells
+      if(c.includes('LSI') || c.includes('LSI')){
+        const num = parseFloat(v);
+        if(!isNaN(num)){
+          const cls = num>=90?'lsi-good':num>=80?'lsi-warn':'lsi-bad';
+          return `<td><span class="lsi-cell ${cls}">${num.toFixed(1)}</span></td>`;
+        }
+      }
+      if(typeof v==='number') v = v.toFixed?.(1)??v;
+      return `<td>${v}</td>`;
+    }).join('')+'</tr>';
+  }).join('');
+
+  document.querySelector('#similar-table thead').innerHTML = thead;
+  document.querySelector('#similar-table tbody').innerHTML = tbody;
+}
+
+// ========================================================================
+// Tab 3: Recovery Trajectory
+// ========================================================================
+async function loadRecovery(){
+  const filters = getFilters();
+  // Use LSI metrics for recovery curves
+  const recoveryMetrics = selectedMetrics.filter(m=>m.includes('LSI'));
+  if(recoveryMetrics.length===0){
+    alert('Please select at least one LSI metric from the sidebar.');
+    return;
+  }
+  filters.metrics = recoveryMetrics;
+
+  const r = await fetch('/api/recovery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(filters)});
+  const data = await r.json();
+
+  // Get optional patient data
+  let patientData = null;
+  const pid = document.getElementById('recovery-patient-id').value.trim();
+  if(pid){
+    const pr = await fetch(`/api/patient/${pid}`);
+    if(pr.ok) patientData = await pr.json();
+  }
+
+  const container = document.getElementById('recovery-charts');
+  container.innerHTML='';
+  // Destroy old charts
+  Object.keys(activeCharts).filter(k=>k.startsWith('rec-')).forEach(k=>{activeCharts[k].destroy();delete activeCharts[k]});
+
+  Object.entries(data.trajectories).forEach(([metric, traj])=>{
+    if(traj.length===0) return;
+    const box = document.createElement('div');
+    box.className='chart-box';
+    box.innerHTML=`<h3>${metricLabel(metric)} — Recovery Over Time</h3><canvas id="rec-${metric}"></canvas>`;
+    container.appendChild(box);
+
+    const labels = traj.map(t=>t.month+'mo');
+    const datasets = [
+      {label:'75th %ile',data:traj.map(t=>t.p75),borderColor:'rgba(16,185,129,0.7)',backgroundColor:'rgba(16,185,129,0.05)',fill:'+1',borderDash:[5,3],pointRadius:3,tension:0.3},
+      {label:'Median',data:traj.map(t=>t.median),borderColor:'rgba(37,99,235,1)',backgroundColor:'rgba(37,99,235,0.08)',fill:false,borderWidth:3,pointRadius:4,tension:0.3},
+      {label:'25th %ile',data:traj.map(t=>t.p25),borderColor:'rgba(239,68,68,0.7)',backgroundColor:'rgba(239,68,68,0.05)',fill:'-1',borderDash:[5,3],pointRadius:3,tension:0.3},
+    ];
+
+    // 90% threshold line
+    datasets.push({
+      label:'90% RTS Threshold',
+      data: traj.map(()=>90),
+      borderColor:'rgba(239,68,68,0.5)',
+      borderDash:[8,4],
+      borderWidth:2,
+      pointRadius:0,
+      fill:false
+    });
+
+    // Overlay patient data if available
+    if(patientData && patientData.length>0){
+      const patientPoints = traj.map(t=>{
+        const rec = patientData.find(p=>p.Post_Surgery_Progress===t.month);
+        return rec?rec[metric]:null;
+      });
+      datasets.push({
+        label:`Patient ${pid}`,
+        data:patientPoints,
+        borderColor:'#f59e0b',
+        backgroundColor:'#f59e0b',
+        borderWidth:3,
+        pointRadius:6,
+        pointStyle:'star',
+        fill:false,
+        spanGaps:true
+      });
+    }
+
+    activeCharts['rec-'+metric] = new Chart(document.getElementById('rec-'+metric),{
+      type:'line',
+      data:{labels,datasets},
+      options:{
+        plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},
+        scales:{
+          x:{title:{display:true,text:'Post-Surgery (months)'}},
+          y:{title:{display:true,text:metricLabel(metric)},suggestedMin:60,suggestedMax:100}
+        },
+        animation:{duration:400}
+      }
+    });
+  });
+
+  if(Object.keys(data.trajectories).length===0){
+    container.innerHTML='<div class="card" style="text-align:center;color:var(--muted)">No trajectory data available for the current filters.</div>';
+  }
+}
+
+// ========================================================================
+// Tab 4: Chat
+// ========================================================================
+async function sendChat(){
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if(!msg) return;
+  input.value='';
+
+  appendChat('user', msg);
+  appendChat('typing','');
+
+  try{
+    const r = await fetch('/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({message:msg, filters:getFilters()})
+    });
+    removeTyping();
+    const data = await r.json();
+    if(data.error){
+      appendChat('system','Error: '+data.error);
+    }else{
+      appendChat('assistant', data.reply);
+    }
+  }catch(e){
+    removeTyping();
+    appendChat('system','Connection error. Is the server running?');
+  }
+}
+
+function askSuggestion(btn){
+  document.getElementById('chat-input').value = btn.textContent;
+  sendChat();
+}
+
+function appendChat(role, text){
+  const container = document.getElementById('chat-messages');
+  if(role==='typing'){
+    const el = document.createElement('div');
+    el.className='typing-indicator';
+    el.id='typing-indicator';
+    el.innerHTML='<span class="spinner" style="display:inline-block;vertical-align:middle;margin-right:6px"></span> OSVi Assistant is thinking...';
+    container.appendChild(el);
+  }else{
+    const el = document.createElement('div');
+    el.className = 'chat-msg '+role;
+    el.textContent = text;
+    container.appendChild(el);
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeTyping(){
+  const el = document.getElementById('typing-indicator');
+  if(el) el.remove();
+}
+
+// ========================================================================
+// Tab Switching
+// ========================================================================
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector(`.tab[data-tab="${name}"]`).classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+// ========================================================================
+// Boot
+// ========================================================================
+init();
+</script>
+</body>
+</html>
