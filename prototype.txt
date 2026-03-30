@@ -1,0 +1,21 @@
+1. Target: A WebApp, which links Claude to our backend database. Mainly for reporting and patient consulting.
+
+
+2. Goal
+(1) Allow different staffs(Clinicians, Physios) to query the OSVi population data to compare with their own patients
+(2) We need setup a chatbot to give clinicians/Physios the most flexible strategy to do any query or ask any question. 
+(3) The chatbot's backend is Claude but we need to mask the Claude.
+(4) The clinician may want summary data, figures, or mid-size summary of the data.
+
+
+3. Typical example
+Case1: During reporting, a tester is an 30yr-old ACLR patient who used to play basketball. When doing reporting, they want to explore how the 6 months post-surgery patients' performance on Single leg jump height RSI, so they ask the chatbot. Chatbot will see the database and return the values and some summary.
+
+Case2: During consulting, a tester is planning to undergo ACL surgery. They can find whether there is any case similar to their current patient, and propose the treatment based on the previous patients' case scenario.
+
+Case3: During reporting, clinicians can clearly show the patient how their post-surgery recovery goes compared to other previous patients in the same post-surgery period.
+
+
+
+
+
