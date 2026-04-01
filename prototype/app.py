@@ -47,6 +47,19 @@ DEMOGRAPHICS = {
     "age_max": int(df["Age"].max()),
     "total_patients": int(df["Patient_ID"].nunique()),
     "total_records": len(df),
+    # Registration-derived filter options
+    "competition_levels": sorted(df["Competition_Level"].dropna().unique().tolist()) if "Competition_Level" in df.columns else [],
+    "dom_jump_legs": sorted(df["Dom_Jump_Leg"].dropna().unique().tolist()) if "Dom_Jump_Leg" in df.columns else [],
+    "dom_kick_legs": sorted(df["Dom_Kick_Leg"].dropna().unique().tolist()) if "Dom_Kick_Leg" in df.columns else [],
+    "injury_mechanisms": sorted(df["Injury_Mechanism"].dropna().unique().tolist()) if "Injury_Mechanism" in df.columns else [],
+    "surgical_procedures": sorted(df["Surgical_Procedure"].dropna().unique().tolist()) if "Surgical_Procedure" in df.columns else [],
+    "graft_types": sorted(df["Graft_Type"].dropna().unique().tolist()) if "Graft_Type" in df.columns else [],
+    "surgeons": sorted(df["Surgeon"].dropna().unique().tolist()) if "Surgeon" in df.columns else [],
+    "previous_aclr_opts": sorted(df["Previous_ACLR"].dropna().unique().tolist()) if "Previous_ACLR" in df.columns else [],
+    "other_ll_injury_opts": sorted(df["Other_LL_Injuries"].dropna().unique().tolist()) if "Other_LL_Injuries" in df.columns else [],
+    "rehab_freq_opts": sorted(df["Rehab_Freq_per_Week"].dropna().unique().tolist()) if "Rehab_Freq_per_Week" in df.columns else [],
+    "rehab_supervised_opts": sorted(df["Rehab_Supervised"].dropna().unique().tolist()) if "Rehab_Supervised" in df.columns else [],
+    "family_acl_opts": sorted(df["Family_ACL_History"].dropna().unique().tolist()) if "Family_ACL_History" in df.columns else [],
 }
 
 # Build a compact data-dictionary string for the system prompt
@@ -138,39 +151,133 @@ def api_query():
 def api_similar():
     """
     Find patients similar to a given profile.
-    Body: { age, sex, sport, symptom, injury_limb, months, top_n }
+    All list-type fields accept multiple values (multi-select).
+    Body: {
+        age_min, age_max, top_n,
+        sex (list), sport (list), symptom (list), injury_limb (list), months (list),
+        competition_level (list), dom_jump_leg (list), dom_kick_leg (list),
+        injury_mechanism (list), surgical_procedure (list), graft_type (list),
+        surgeon (list), previous_aclr (list), other_ll_injuries (list),
+        rehab_freq (list), rehab_supervised (list), family_acl (list)
+    }
     """
     body = request.json or {}
-    target_age = int(body.get("age", 30))
-    top_n = int(body.get("top_n", 10))
+    age_min = int(body["age_min"]) if body.get("age_min") not in (None, "") else None
+    age_max = int(body["age_max"]) if body.get("age_max") not in (None, "") else None
+    top_n_chart = int(body.get("top_n_chart", 40))
+    top_n_table = int(body.get("top_n_table", 15))
+
+    def multi_filter(df_, col, key):
+        vals = body.get(key, [])
+        if isinstance(vals, str): vals = [vals]
+        vals = [v for v in vals if v]
+        if vals:
+            df_ = df_[df_[col].isin(vals)]
+        return df_
 
     filtered = df.copy()
-    if body.get("sex"):
-        filtered = filtered[filtered["Sex"] == body["sex"]]
-    if body.get("sport"):
-        filtered = filtered[filtered["Sport"] == body["sport"]]
-    if body.get("symptom"):
-        filtered = filtered[filtered["Symptom"] == body["symptom"]]
-    if body.get("injury_limb"):
-        filtered = filtered[filtered["Injury_Limb"] == body["injury_limb"]]
-    if body.get("months"):
-        filtered = filtered[filtered["Post_Surgery_Progress"] == int(body["months"])]
+    filtered = multi_filter(filtered, "Sex",              "sex")
+    filtered = multi_filter(filtered, "Sport",            "sport")
+    filtered = multi_filter(filtered, "Symptom",          "symptom")
+    filtered = multi_filter(filtered, "Injury_Limb",      "injury_limb")
+    filtered = multi_filter(filtered, "Competition_Level","competition_level")
+    filtered = multi_filter(filtered, "Dom_Jump_Leg",     "dom_jump_leg")
+    filtered = multi_filter(filtered, "Dom_Kick_Leg",     "dom_kick_leg")
+    filtered = multi_filter(filtered, "Injury_Mechanism", "injury_mechanism")
+    filtered = multi_filter(filtered, "Surgical_Procedure","surgical_procedure")
+    filtered = multi_filter(filtered, "Graft_Type",       "graft_type")
+    filtered = multi_filter(filtered, "Surgeon",          "surgeon")
+    filtered = multi_filter(filtered, "Previous_ACLR",    "previous_aclr")
+    filtered = multi_filter(filtered, "Other_LL_Injuries","other_ll_injuries")
+    filtered = multi_filter(filtered, "Rehab_Freq_per_Week","rehab_freq")
+    filtered = multi_filter(filtered, "Rehab_Supervised", "rehab_supervised")
+    filtered = multi_filter(filtered, "Family_ACL_History","family_acl")
 
-    # Score by age similarity
+    # Months multi-select
+    months_vals = body.get("months", [])
+    if isinstance(months_vals, (str, int, float)): months_vals = [months_vals]
+    months_vals = [int(m) for m in months_vals if m != "" and m is not None]
+    if months_vals:
+        filtered = filtered[filtered["Post_Surgery_Progress"].isin(months_vals)]
+
+    # Age range filter + sort by midpoint proximity
+    if age_min is not None:
+        filtered = filtered[filtered["Age"] >= age_min]
+    if age_max is not None:
+        filtered = filtered[filtered["Age"] <= age_max]
+    midpoint = ((age_min or 14) + (age_max or 60)) / 2
     filtered = filtered.copy()
-    filtered["_age_diff"] = (filtered["Age"] - target_age).abs()
-    filtered = filtered.sort_values("_age_diff").head(top_n)
+    filtered["_age_diff"] = (filtered["Age"] - midpoint).abs()
+    filtered = filtered.sort_values("_age_diff")
 
-    # Select key columns for display
-    display_cols = ["Patient_ID", "Age", "Sex", "Sport", "Symptom", "Injury_Limb",
-                    "Post_Surgery_Progress",
-                    "ExtIsoLSI_", "ExtConLSI_", "FleIsoLSI_", "FleConLSI_",
-                    "LSI_jhSL_", "LSI_rsidj_SL_", "LSI_triforhop_",
-                    "HQcc_L_", "HQcc_R_"]
-    display_cols = [c for c in display_cols if c in filtered.columns]
-    result = filtered[display_cols].to_dict(orient="records")
+    # Capture count after filters, before slicing
+    n_filtered = len(filtered)
 
-    return jsonify({"n_matched": len(filtered), "patients": result})
+    # Two separate slices: wider for charts, tighter for table
+    filtered_chart = filtered.head(top_n_chart)
+    filtered_table = filtered.head(top_n_table)
+
+    # Requested metrics for chart visualisation
+    metrics = body.get("metrics", [])
+    if isinstance(metrics, str):
+        metrics = [metrics]
+
+    # Handle index patient (may or may not be in filtered set)
+    patient_id = body.get("patient_id", None)
+    index_patient_data = None
+    patient_included = False
+
+    if patient_id:
+        in_chart = filtered_chart[filtered_chart["Patient_ID"] == patient_id]
+        if len(in_chart) > 0:
+            patient_included = True
+        else:
+            in_full = df[df["Patient_ID"] == patient_id]
+            if len(in_full) > 0:
+                index_patient_data = in_full.iloc[0]
+                # Inject index patient into chart slice only
+                filtered_chart = pd.concat([filtered_chart, in_full], ignore_index=True)
+                patient_included = True
+
+    # Select key columns for display (original + new registration columns)
+    display_cols = [
+        "Patient_ID", "Age", "Sex", "Sport", "Symptom", "Injury_Limb",
+        "Post_Surgery_Progress",
+        "Height_cm", "Weight_kg", "Competition_Level",
+        "Dom_Jump_Leg", "Dom_Kick_Leg", "Injury_Mechanism",
+        "Surgical_Procedure", "Graft_Type", "Surgeon",
+        "Previous_ACLR", "Other_LL_Injuries",
+        "Rehab_Freq_per_Week", "Rehab_Supervised", "Family_ACL_History",
+        "ExtIsoLSI_", "ExtConLSI_", "FleIsoLSI_", "FleConLSI_",
+        "LSI_jhSL_", "LSI_rsidj_SL_", "LSI_triforhop_",
+        "HQcc_L_", "HQcc_R_",
+    ]
+    for m in metrics:
+        if m in df.columns and m not in display_cols:
+            display_cols.append(m)
+    display_cols = [c for c in display_cols if c in df.columns]
+
+    # Chart patients (wider slice) — all columns including metrics
+    chart_result = filtered_chart[display_cols].replace({float('nan'): None}).to_dict(orient="records")
+
+    # Table patients (tighter slice) — same columns
+    table_result = filtered_table[display_cols].replace({float('nan'): None}).to_dict(orient="records")
+
+    # Build index_patient dict for separate overlay if not in chart cohort
+    index_patient_resp = None
+    if index_patient_data is not None:
+        index_patient_resp = {c: (None if pd.isna(index_patient_data[c]) else index_patient_data[c])
+                              for c in display_cols if c in index_patient_data.index}
+
+    return jsonify({
+        "n_filtered": n_filtered,
+        "n_chart":    len(filtered_chart),
+        "n_table":    len(filtered_table),
+        "patients":   chart_result,   # used for charts (larger)
+        "table_patients": table_result, # used for the table (smaller)
+        "patient_included": patient_included,
+        "index_patient": index_patient_resp,
+    })
 
 # ---------------------------------------------------------------------------
 # API: recovery trajectory

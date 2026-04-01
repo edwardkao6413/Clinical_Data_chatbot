@@ -1,4 +1,5 @@
 # OSVi Biomechanics Demo Database — Data Dictionary
+This document provides the information regarding the columns that our database includes.
 
 **Source file:** `OSVi_Biomechanics_Demo_Database.csv`
 **Total rows:** 2,000 | **Total columns:** 141
