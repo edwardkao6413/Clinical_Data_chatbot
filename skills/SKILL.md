@@ -259,4 +259,41 @@ Only LSI columns are colour-coded: ≥90% green, 80–89% amber, <80% red. Non-L
 
 ---
 
-*Last updated: April 2026 (Registration integration + multi-select filters + Similar Patients UI polish) | Project: OSVi Clinical Population Data Query System*
+## 10. Metric Naming Convention
+
+### Source of truth
+All metric display names are defined in **`references/metric_labels.json`**.
+- **Key** = the exact column/variable code used in the CSV and dashboard JS (`METRIC_LABELS` object in `index.html`).
+- **Value** = the full clinical name shown to users, following the naming pattern from the OSVi Performance Report template (`references/2026_MARCH_WORKING TEMPLATE_PERFORMANCE REPORT_L4_MALES_Follow-up_FINAL.docx`).
+
+### Naming pattern (derived from the template)
+Follow this pattern exactly when adding new metrics:
+
+| Component | Rule | Examples |
+|---|---|---|
+| **Contraction type first** | Isometric / Concentric / Eccentric | `Isometric Knee Extension` |
+| **Movement second** | Anatomical name | `Knee Extension`, `Hip Abduction` |
+| **Qualifier third** | Relative / Peak Torque at 200ms / Joint Angle / etc. | `Relative Isometric Knee Extension` |
+| **Side suffix** | `— Left`, `— Right`, `— LSI (%)` | `Isometric Knee Extension — Left (Nm)` |
+| **Units in brackets** | Always include unit | `(Nm)`, `(Nm/kg)`, `(N)`, `(BW)`, `(cm)`, `(m/s)`, `(N·s)`, `(W)`, `(s)`, `(°)` |
+| **Double vs Single Leg** | `Double Leg` / `Single Leg` prefix for force plate tasks | `Double Leg CMJ Jump Height (cm)` |
+| **Task abbreviations** | CMJ, DJ, RSI, CPP — match the template's exact abbreviations | `Single Leg Drop Jump RSI — LSI (%)` |
+
+### Rules
+1. **Only ever add** entries to `metric_labels.json` — never delete or rename existing keys (the key is a CSV column name; renaming breaks data loading).
+2. When Edward notifies that the report template (`references/*.docx`) has been updated with new metrics, you must:
+   a. Read the updated template using `pandoc` to extract new column codes and their context.
+   b. Add the new entries to `references/metric_labels.json` following the naming pattern above.
+   c. Add the new keys to `METRIC_LABELS` in `prototype/index.html` with the same value strings.
+   d. Update this SKILL.md if the new metrics introduce a new section or category.
+3. Section-header keys (e.g. `"STRENGTH — KNEE EXTENSION"`) are decorative separators in the JSON — they are **not** valid metric codes and must never be added to the dashboard `METRIC_LABELS`.
+4. The dashboard `METRIC_LABELS` object in `index.html` only needs to contain metrics that are actually selectable in the UI (LSI metrics + key absolute metrics). Raw left/right absolute columns (e.g. `ExtIsoL_`, `ReExtIsoL_`) are in the JSON for completeness but do not need to be in the dashboard selector unless a new feature requires them.
+
+### File locations
+- Naming source of truth: `references/metric_labels.json`
+- Dashboard metric selector: `METRIC_LABELS` const in `prototype/index.html` (~line 424)
+- Report template: `references/2026_MARCH_WORKING TEMPLATE_PERFORMANCE REPORT_L4_MALES_Follow-up_FINAL.docx`
+
+---
+
+*Last updated: April 2026 (metric naming convention + metric_labels.json) | Project: OSVi Clinical Population Data Query System*

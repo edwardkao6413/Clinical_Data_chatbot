@@ -110,6 +110,10 @@ tr:hover td{background:#f8fafc}
 .metric-pills{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .metric-pill{padding:4px 10px;border-radius:12px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:#f8fafc;color:var(--muted);font-weight:500}
 .metric-pill.selected{background:var(--primary);color:#fff;border-color:var(--primary)}
+.metric-group{width:100%;margin-top:10px;margin-bottom:2px}
+.metric-group-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);padding:2px 0;border-bottom:1px solid var(--border);display:block;margin-bottom:4px}
+.metric-group:first-child{margin-top:4px}
+.metric-category-header{width:100%;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--primary);padding:6px 0 2px;border-bottom:2px solid rgba(37,99,235,.2);display:block;margin:10px 0 4px}
 
 /* ===== Click-to-select Tag Picker ===== */
 .tag-picker{display:flex;flex-wrap:wrap;gap:5px;padding:6px;border:1px solid var(--border);border-radius:6px;background:#fff;min-height:36px;cursor:default}
@@ -164,6 +168,12 @@ tr:hover td{background:#f8fafc}
   .chart-grid{grid-template-columns:1fr}
   .pop-filter-grid{grid-template-columns:1fr 1fr}
 }
+
+/* ===== Collapsible section toggle ===== */
+.collapse-toggle{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:#f8fafc;user-select:none;transition:all .15s;white-space:nowrap}
+.collapse-toggle:hover{border-color:var(--primary);color:var(--primary);background:#eff6ff}
+.collapse-toggle .chevron{font-size:11px;display:inline-block;transition:transform .2s}
+.collapse-toggle.collapsed .chevron{transform:rotate(-90deg)}
 
 /* ===== Loading ===== */
 .loading{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
@@ -241,8 +251,15 @@ tr:hover td{background:#f8fafc}
             </div>
           </div>
           <div style="margin-top:12px">
-            <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Select Metrics</div>
-            <div id="metric-selector" class="metric-pills"></div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;flex:1">Select Metrics</div>
+              <button class="collapse-toggle" id="pop-metric-toggle" onclick="togglePopMetrics()">
+                <span class="chevron">▾</span> <span id="pop-metric-toggle-label">Hide</span>
+              </button>
+            </div>
+            <div id="pop-metric-body">
+              <div id="metric-selector" class="metric-pills"></div>
+            </div>
           </div>
           <div style="display:flex;gap:8px;margin-top:14px">
             <button class="btn btn-primary" style="flex:1" onclick="applyFilters()">Apply Filters</button>
@@ -262,74 +279,105 @@ tr:hover td{background:#f8fafc}
     <!-- ====== TAB 2: Similar Patients ====== -->
     <div class="tab-panel" id="panel-similar">
       <div class="card">
-        <h2>Find Similar Patients</h2>
-        <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Click any tag to select it, click again to deselect. Leave a group empty to include all values.</p>
-
-        <!-- Patient ID (index patient) -->
-        <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(226,232,240,.7)">
-          <div class="form-group" style="max-width:360px">
-            <label style="font-size:12px;font-weight:600;color:var(--primary)">Patient ID (optional — overlay on metric charts)</label>
-            <input type="text" id="sim-patient-id" placeholder="e.g. ACL00450"
-              style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;border-color:var(--primary)">
-          </div>
+        <!-- Card header with collapse toggle -->
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+          <h2 style="margin:0;flex:1">Find Similar Patients</h2>
+          <button class="collapse-toggle" id="sim-filter-toggle" onclick="toggleSimFilters()">
+            <span class="chevron">▾</span> <span id="sim-filter-toggle-label">Hide Filters</span>
+          </button>
         </div>
 
-        <span class="sim-section-header">Demographics</span>
-        <div class="sim-form">
-          <!-- Row 1: narrow fields -->
-          <div class="form-group sim-demo-age">
-            <label>Age Range</label>
-            <div style="display:flex;gap:6px;align-items:center">
-              <input type="number" id="sim-age-min" placeholder="Min" min="14" max="60" style="width:70px;padding:8px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
-              <span style="color:var(--muted);font-size:13px">–</span>
-              <input type="number" id="sim-age-max" placeholder="Max" min="14" max="60" style="width:70px;padding:8px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+        <!-- Collapsible filter body -->
+        <div id="sim-filter-body">
+          <p style="color:var(--muted);font-size:13px;margin-bottom:16px;margin-top:8px">Click any tag to select it, click again to deselect. Leave a group empty to include all values.</p>
+
+          <!-- Patient ID (index patient + auto-fill) -->
+          <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(226,232,240,.7)">
+            <label style="font-size:12px;font-weight:600;color:var(--primary);display:block;margin-bottom:6px">
+              Patient ID
+              <span style="font-weight:400;color:var(--muted)">— enter to auto-fill filters below, or leave empty to fill manually</span>
+            </label>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input type="text" id="sim-patient-id" placeholder="e.g. ACL00450"
+                style="padding:8px 10px;border:1px solid var(--primary);border-radius:6px;font-size:13px;width:200px"
+                onkeydown="if(event.key==='Enter') confirmPatientId()">
+              <button class="btn btn-primary btn-sm" onclick="confirmPatientId()">Confirm</button>
+              <button class="btn btn-secondary btn-sm" id="sim-clear-patient-btn" onclick="clearPatientId()" style="display:none">Clear patient</button>
+              <span id="sim-patient-status" style="font-size:12px"></span>
             </div>
           </div>
-          <div class="form-group sim-demo-sex"><label>Sex</label><div class="tag-picker" id="tp-sex"></div></div>
-          <div class="form-group sim-demo-cond"><label>Condition</label><div class="tag-picker" id="tp-symptom"></div></div>
-          <div class="form-group sim-demo-limb"><label>Injury Limb</label><div class="tag-picker" id="tp-limb"></div></div>
-          <div class="form-group sim-demo-months"><label>Post-Surgery Mo.</label><div class="tag-picker" id="tp-months"></div></div>
-          <!-- Row 2: wide fields -->
-          <div class="form-group sim-demo-sport"><label>Sport</label><div class="tag-picker" id="tp-sport"></div></div>
-          <div class="form-group sim-demo-comp"><label>Competition Level</label><div class="tag-picker" id="tp-comp"></div></div>
-        </div>
 
-        <span class="sim-section-header">Injury &amp; Surgery</span>
-        <div class="sim-form">
-          <!-- Row 1: narrow fields -->
-          <div class="form-group sim-inj-djump"><label>Dominant Jump Leg</label><div class="tag-picker" id="tp-dom-jump"></div></div>
-          <div class="form-group sim-inj-dkick"><label>Dominant Kick Leg</label><div class="tag-picker" id="tp-dom-kick"></div></div>
-          <div class="form-group sim-inj-mech"><label>Injury Mechanism</label><div class="tag-picker" id="tp-mechanism"></div></div>
-          <div class="form-group sim-inj-graft"><label>Graft Type</label><div class="tag-picker" id="tp-graft"></div></div>
-          <!-- Row 2: wide fields -->
-          <div class="form-group sim-inj-proc"><label>Surgical Procedure</label><div class="tag-picker" id="tp-procedure"></div></div>
-          <div class="form-group sim-inj-surgeon"><label>Surgeon</label><div class="tag-picker" id="tp-surgeon"></div></div>
-        </div>
-
-        <span class="sim-section-header">History &amp; Rehabilitation</span>
-        <div class="sim-form" style="margin-bottom:8px">
-          <!-- Row 1: narrow -->
-          <div class="form-group sim-hx-prev"><label>Previous ACLR</label><div class="tag-picker" id="tp-prev-aclr"></div></div>
-          <div class="form-group sim-hx-other"><label>Other LL Injuries</label><div class="tag-picker" id="tp-other-ll"></div></div>
-          <div class="form-group sim-hx-freq"><label>Rehab Freq / Week</label><div class="tag-picker" id="tp-rehab-freq"></div></div>
-          <div class="form-group sim-hx-sup"><label>Rehab Supervised</label><div class="tag-picker" id="tp-rehab-sup"></div></div>
-          <!-- Row 2: wide -->
-          <div class="form-group sim-hx-family"><label>Family ACL History</label><div class="tag-picker" id="tp-family-acl"></div></div>
-          <div class="form-group sim-hx-buttons" style="display:flex;gap:8px;align-items:flex-end">
-            <button class="btn btn-primary" style="flex:1" onclick="findSimilar()">Search Similar</button>
-            <button class="btn btn-secondary" style="flex:1" onclick="clearSimilarFilters()">Clear All</button>
+          <span class="sim-section-header">Demographics</span>
+          <div class="sim-form">
+            <!-- Row 1: narrow fields -->
+            <div class="form-group sim-demo-age">
+              <label>Age Range</label>
+              <div style="display:flex;gap:6px;align-items:center">
+                <input type="number" id="sim-age-min" placeholder="Min" min="14" max="60" style="width:70px;padding:8px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+                <span style="color:var(--muted);font-size:13px">–</span>
+                <input type="number" id="sim-age-max" placeholder="Max" min="14" max="60" style="width:70px;padding:8px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+              </div>
+            </div>
+            <div class="form-group sim-demo-sex"><label>Sex</label><div class="tag-picker" id="tp-sex"></div></div>
+            <div class="form-group sim-demo-cond"><label>Condition</label><div class="tag-picker" id="tp-symptom"></div></div>
+            <div class="form-group sim-demo-limb"><label>Injury Limb</label><div class="tag-picker" id="tp-limb"></div></div>
+            <div class="form-group sim-demo-months"><label>Post-Surgery Mo.</label><div class="tag-picker" id="tp-months"></div></div>
+            <!-- Row 2: wide fields -->
+            <div class="form-group sim-demo-sport"><label>Sport</label><div class="tag-picker" id="tp-sport"></div></div>
+            <div class="form-group sim-demo-comp"><label>Competition Level</label><div class="tag-picker" id="tp-comp"></div></div>
           </div>
-        </div>
+
+          <span class="sim-section-header">Injury &amp; Surgery</span>
+          <div class="sim-form">
+            <!-- Row 1: narrow fields -->
+            <div class="form-group sim-inj-djump"><label>Dominant Jump Leg</label><div class="tag-picker" id="tp-dom-jump"></div></div>
+            <div class="form-group sim-inj-dkick"><label>Dominant Kick Leg</label><div class="tag-picker" id="tp-dom-kick"></div></div>
+            <div class="form-group sim-inj-mech"><label>Injury Mechanism</label><div class="tag-picker" id="tp-mechanism"></div></div>
+            <div class="form-group sim-inj-graft"><label>Graft Type</label><div class="tag-picker" id="tp-graft"></div></div>
+            <!-- Row 2: wide fields -->
+            <div class="form-group sim-inj-proc"><label>Surgical Procedure</label><div class="tag-picker" id="tp-procedure"></div></div>
+            <div class="form-group sim-inj-surgeon"><label>Surgeon</label><div class="tag-picker" id="tp-surgeon"></div></div>
+          </div>
+
+          <span class="sim-section-header">History &amp; Rehabilitation</span>
+          <div class="sim-form" style="margin-bottom:8px">
+            <!-- Row 1: narrow -->
+            <div class="form-group sim-hx-prev"><label>Previous ACLR</label><div class="tag-picker" id="tp-prev-aclr"></div></div>
+            <div class="form-group sim-hx-other"><label>Other LL Injuries</label><div class="tag-picker" id="tp-other-ll"></div></div>
+            <div class="form-group sim-hx-freq"><label>Rehab Freq / Week</label><div class="tag-picker" id="tp-rehab-freq"></div></div>
+            <div class="form-group sim-hx-sup"><label>Rehab Supervised</label><div class="tag-picker" id="tp-rehab-sup"></div></div>
+            <!-- Row 2: wide -->
+            <div class="form-group sim-hx-family"><label>Family ACL History</label><div class="tag-picker" id="tp-family-acl"></div></div>
+            <div class="form-group sim-hx-buttons" style="display:flex;gap:8px;align-items:flex-end">
+              <button class="btn btn-primary" style="flex:1" onclick="findSimilar()">Search Similar</button>
+              <button class="btn btn-secondary" style="flex:1" onclick="clearSimilarFilters()">Clear All</button>
+            </div>
+          </div>
+        </div><!-- /sim-filter-body -->
       </div>
+
       <!-- Metric selector for Similar Patients (shared selectedMetrics array) -->
       <div class="card" id="sim-metric-card" style="display:none">
-        <div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Select Metrics to Visualise</div>
-        <div id="sim-metric-selector" class="metric-pills"></div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+          <div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;flex:1">Select Metrics to Visualise</div>
+          <button class="collapse-toggle" id="sim-metric-toggle" onclick="toggleSimMetrics()">
+            <span class="chevron">▾</span> <span id="sim-metric-toggle-label">Hide</span>
+          </button>
+        </div>
+        <div id="sim-metric-body">
+          <div id="sim-metric-selector" class="metric-pills"></div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(226,232,240,.7);display:flex;align-items:center;gap:10px">
+            <button class="btn btn-primary btn-sm" onclick="findSimilar()" style="display:flex;align-items:center;gap:5px">
+              <span style="font-size:14px">↻</span> Refresh Charts
+            </button>
+            <span style="font-size:12px;color:var(--muted)">Update visualisations without changing the patient filters above.</span>
+          </div>
+        </div>
       </div>
 
       <!-- Distribution charts for similar cohort -->
       <div class="card" id="sim-chart-card" style="display:none">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap">
           <h2 style="margin:0;flex:1;white-space:nowrap">Metric Distributions — Similar Cohort</h2>
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
             <label style="font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">Show</label>
@@ -339,6 +387,14 @@ tr:hover td{background:#f8fafc}
             <label style="font-size:12px;color:var(--muted);white-space:nowrap">patients</label>
           </div>
           <span id="sim-chart-count" style="font-size:13px;color:var(--muted)"></span>
+        </div>
+        <!-- Arrow legend — only visible when a patient ID is active -->
+        <div id="sim-arrow-legend" style="display:none;align-items:center;gap:6px;margin-bottom:12px;padding:6px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;width:fit-content">
+          <svg width="14" height="20" viewBox="0 0 14 20" style="flex-shrink:0">
+            <line x1="7" y1="0" x2="7" y2="10" stroke="rgba(220,38,38,1)" stroke-width="2"/>
+            <polygon points="7,20 1,10 13,10" fill="rgba(220,38,38,1)"/>
+          </svg>
+          <span style="font-size:12px;color:#991b1b;font-weight:600">Selected patient's position within the matched cohort</span>
         </div>
         <div class="chart-grid" id="sim-chart-container"></div>
       </div>
@@ -414,29 +470,178 @@ let selectedMetrics = [
   "LSI_jhSL_", "LSI_rsidj_SL_", "LSI_triforhop_", "LSI_sqcpp_"
 ];
 
+// METRIC_LABELS: keys = CSV column codes, values = full clinical names.
+// Source of truth: references/metric_labels.json  (naming rules in SKILL.md §10)
+// When adding new metrics: update metric_labels.json first, then mirror here.
 const METRIC_LABELS = {
-  "ExtIsoLSI_":"Ext Isometric LSI","ExtConLSI_":"Ext Concentric LSI",
-  "ExtEccLSI_":"Ext Eccentric LSI","FleIsoLSI_":"Fle Isometric LSI",
-  "FleConLSI_":"Fle Concentric LSI","FleEccLSI_":"Fle Eccentric LSI",
-  "LSI_Isopt200_ext_":"Iso Pt200 Ext LSI","LSI_Isopt200_fle_":"Iso Pt200 Fle LSI",
-  "LSI_Jang_ext_":"Joint Angle Ext LSI","LSI_Jang_fle_":"Joint Angle Fle LSI",
-  "LSI_HQcc_":"H:Q cc LSI","LSI_HQec_":"H:Q ec LSI",
-  "PlLSI_":"Plantarflex LSI","AdLSI_":"Adduction LSI","AbLSI_":"Abduction LSI",
-  "LSI_EcDel_DLCMJ_":"DL CMJ EcDel LSI","LSI_ci_DL_":"DL CMJ CI LSI","LSI_pf_DL_":"DL CMJ PF LSI",
-  "LSI_dof_DL_":"DL DJ DOF LSI","LSI_pk_DLDJ_":"DL DJ Peak LSI",
-  "LSI_jhSL_":"SL Jump Height LSI","LSI_EcBra_SLCMJ_":"SL CMJ EcBra LSI",
-  "LSI_EcDel_SLCMJ_":"SL CMJ EcDel LSI","LSI_ci_SL_":"SL CMJ CI LSI",
-  "LSI_ciP1_SL_":"SL CMJ CI-P1 LSI","LSI_ciP2_SL_":"SL CMJ CI-P2 LSI",
-  "LSI_rsidj_SL_":"SL DJ RSI LSI","LSI_jhSL_dj_":"SL DJ JH LSI",
-  "LSI_ctSL_dj_":"SL DJ CT LSI","LSI_act_SL_dj_":"SL DJ ACT LSI","LSI_dof_SL_":"SL DJ DOF LSI",
-  "LSI_105rsi_SL_":"SL 10-5 RSI LSI","LSI_105jh_SL_":"SL 10-5 JH LSI","LSI_105ct_SL_":"SL 10-5 CT LSI",
-  "LSI_triforhop_":"Triple Hop LSI","LSI_sqcpp_":"SL Squat CPP LSI",
-  // Absolute metrics
-  "jhDL_":"DL CMJ Height","rsidj_DL_":"DL DJ RSI","jhSL_L_":"SL CMJ JH (L)","jhSL_R_":"SL CMJ JH (R)",
-  "HQcc_L_":"H:Q cc (L)","HQcc_R_":"H:Q cc (R)","HQec_L_":"H:Q ec (L)","HQec_R_":"H:Q ec (R)",
+  // ── STRENGTH: Knee Extension ─────────────────────────────────────
+  "ExtIsoL_":          "Isometric Knee Extension — Left (Nm)",
+  "ExtIsoR_":          "Isometric Knee Extension — Right (Nm)",
+  "ExtIsoLSI_":        "Isometric Knee Extension — LSI (%)",
+  "ReExtIsoL_":        "Relative Isometric Knee Extension — Left (Nm/kg)",
+  "ReExtIsoR_":        "Relative Isometric Knee Extension — Right (Nm/kg)",
+  "IsoPt200L_ext_":    "Isometric Knee Extension Peak Torque at 200ms — Left (Nm)",
+  "IsoPt200R_ext_":    "Isometric Knee Extension Peak Torque at 200ms — Right (Nm)",
+  "LSI_Isopt200_ext_": "Isometric Knee Extension Peak Torque at 200ms — LSI (%)",
+  "ExtConL_":          "Concentric Knee Extension — Left (Nm)",
+  "ExtConR_":          "Concentric Knee Extension — Right (Nm)",
+  "ExtConLSI_":        "Concentric Knee Extension — LSI (%)",
+  "ReExtConL_":        "Relative Concentric Knee Extension — Left (Nm/kg)",
+  "ReExtConR_":        "Relative Concentric Knee Extension — Right (Nm/kg)",
+  "Jang_ptL_ext_":     "Concentric Knee Extension Joint Angle at Peak Torque — Left (°)",
+  "Jang_ptR_ext_":     "Concentric Knee Extension Joint Angle at Peak Torque — Right (°)",
+  "LSI_Jang_ext_":     "Concentric Knee Extension Joint Angle at Peak Torque — LSI (%)",
+  "ExtEccL_":          "Eccentric Knee Extension — Left (Nm)",
+  "ExtEccR_":          "Eccentric Knee Extension — Right (Nm)",
+  "ExtEccLSI_":        "Eccentric Knee Extension — LSI (%)",
+  "ReExtEccL_":        "Relative Eccentric Knee Extension — Left (Nm/kg)",
+  "ReExtEccR_":        "Relative Eccentric Knee Extension — Right (Nm/kg)",
+  // ── STRENGTH: Knee Flexion ───────────────────────────────────────
+  "FleIsoL_":          "Isometric Knee Flexion — Left (Nm)",
+  "FleIsoR_":          "Isometric Knee Flexion — Right (Nm)",
+  "FleIsoLSI_":        "Isometric Knee Flexion — LSI (%)",
+  "ReFleIsoL_":        "Relative Isometric Knee Flexion — Left (Nm/kg)",
+  "ReFleIsoR_":        "Relative Isometric Knee Flexion — Right (Nm/kg)",
+  "IsoPt200L_fle_":    "Isometric Knee Flexion Peak Torque at 200ms — Left (Nm)",
+  "IsoPt200R_fle_":    "Isometric Knee Flexion Peak Torque at 200ms — Right (Nm)",
+  "LSI_Isopt200_fle_": "Isometric Knee Flexion Peak Torque at 200ms — LSI (%)",
+  "FleConL_":          "Concentric Knee Flexion — Left (Nm)",
+  "FleConR_":          "Concentric Knee Flexion — Right (Nm)",
+  "FleConLSI_":        "Concentric Knee Flexion — LSI (%)",
+  "ReFleConL_":        "Relative Concentric Knee Flexion — Left (Nm/kg)",
+  "ReFleConR_":        "Relative Concentric Knee Flexion — Right (Nm/kg)",
+  "Jang_ptL_fle_":     "Concentric Knee Flexion Joint Angle at Peak Torque — Left (°)",
+  "Jang_ptR_fle_":     "Concentric Knee Flexion Joint Angle at Peak Torque — Right (°)",
+  "LSI_Jang_fle_":     "Concentric Knee Flexion Joint Angle at Peak Torque — LSI (%)",
+  "FleEccL_":          "Eccentric Knee Flexion — Left (Nm)",
+  "FleEccR_":          "Eccentric Knee Flexion — Right (Nm)",
+  "FleEccLSI_":        "Eccentric Knee Flexion — LSI (%)",
+  "ReFleEccL_":        "Relative Eccentric Knee Flexion — Left (Nm/kg)",
+  "ReFleEccR_":        "Relative Eccentric Knee Flexion — Right (Nm/kg)",
+  // ── STRENGTH: H:Q Ratios ─────────────────────────────────────────
+  "HQcc_L_":           "H:Q (Con:Con) — Left",
+  "HQcc_R_":           "H:Q (Con:Con) — Right",
+  "LSI_HQcc_":         "H:Q (Con:Con) — LSI (%)",
+  "HQec_L_":           "Dynamic H:Q (Ecc:Con) — Left",
+  "HQec_R_":           "Dynamic H:Q (Ecc:Con) — Right",
+  "LSI_HQec_":         "Dynamic H:Q (Ecc:Con) — LSI (%)",
+  // ── STRENGTH: Ankle Plantarflexion ──────────────────────────────
+  "PlLeft_":           "Ankle Plantarflexion Isometric — Left (N)",
+  "PlRight_":          "Ankle Plantarflexion Isometric — Right (N)",
+  "PlLSI_":            "Ankle Plantarflexion Isometric — LSI (%)",
+  "ReLeft_":           "Relative Ankle Plantarflexion Isometric — Left (BW)",
+  "ReRight_":          "Relative Ankle Plantarflexion Isometric — Right (BW)",
+  // ── STRENGTH: Hip Adduction ──────────────────────────────────────
+  "AdLeft_":           "Hip Adduction — Left (N)",
+  "AdRight_":          "Hip Adduction — Right (N)",
+  "AdLSI_":            "Hip Adduction — LSI (%)",
+  "ReAdLeft_":         "Relative Hip Adduction — Left (BW)",
+  "ReAdRight_":        "Relative Hip Adduction — Right (BW)",
+  // ── STRENGTH: Hip Abduction ──────────────────────────────────────
+  "AbLeft_":           "Hip Abduction — Left (N)",
+  "AbRight_":          "Hip Abduction — Right (N)",
+  "AbLSI_":            "Hip Abduction — LSI (%)",
+  "ReAbLeft_":         "Relative Hip Abduction — Left (BW)",
+  "ReAbRight_":        "Relative Hip Abduction — Right (BW)",
+  // ── PERFORMANCE: DL Countermovement Jump ────────────────────────
+  "jhDL_":             "Double Leg CMJ Jump Height (cm)",
+  "EcDel_DLCMJ_L_":   "Double Leg CMJ Eccentric Deceleration Impulse — Left (N·s)",
+  "EcDel_DLCMJ_R_":   "Double Leg CMJ Eccentric Deceleration Impulse — Right (N·s)",
+  "LSI_EcDel_DLCMJ_":  "Double Leg CMJ Eccentric Deceleration Impulse — LSI (%)",
+  "ci_left_DL_":       "Double Leg CMJ Concentric Impulse — Left (N·s)",
+  "ci_right_DL_":      "Double Leg CMJ Concentric Impulse — Right (N·s)",
+  "LSI_ci_DL_":        "Double Leg CMJ Concentric Impulse — LSI (%)",
+  "pf_left_DL_":       "Double Leg CMJ Relative Peak Landing Force — Left (N/BW)",
+  "pf_right_DL_":      "Double Leg CMJ Relative Peak Landing Force — Right (N/BW)",
+  "LSI_pf_DL_":        "Double Leg CMJ Relative Peak Landing Force — LSI (%)",
+  // ── PERFORMANCE: DL Drop Jump ────────────────────────────────────
+  "rsidj_DL_":         "Double Leg Drop Jump Reactive Strength Index (m/s)",
+  "jhDL_dj_":          "Double Leg Drop Jump Height (cm)",
+  "ct_DL_dj_":         "Double Leg Drop Jump Ground Contact Time (s)",
+  "asi_DL_dj_":        "Double Leg Drop Jump Active Stiffness Index (N)",
+  "dof_DL_L_":         "Double Leg Drop Jump Drive-Off Force — Left (N)",
+  "dof_DL_R_":         "Double Leg Drop Jump Drive-Off Force — Right (N)",
+  "LSI_dof_DL_":       "Double Leg Drop Jump Drive-Off Force — LSI (%)",
+  "pk_left_DLdj_":     "Double Leg Drop Jump Relative Peak Landing Force — Left (N/BW)",
+  "pk_right_DLdj_":    "Double Leg Drop Jump Relative Peak Landing Force — Right (N/BW)",
+  "LSI_pk_DLDJ_":      "Double Leg Drop Jump Relative Peak Landing Force — LSI (%)",
+  // ── PERFORMANCE: DL 10-5 Repeated Hops ──────────────────────────
+  "105rsi_DL_":        "Double Leg 10-5 Repeated Hops Reactive Strength Index (m/s)",
+  "105jh_DL_":         "Double Leg 10-5 Repeated Hops Jump Height (cm)",
+  "105ct_DL_":         "Double Leg 10-5 Repeated Hops Ground Contact Time (s)",
+  // ── PERFORMANCE: SL Countermovement Jump ────────────────────────
+  "jhSL_L_":           "Single Leg CMJ Jump Height — Left (cm)",
+  "jhSL_R_":           "Single Leg CMJ Jump Height — Right (cm)",
+  "LSI_jhSL_":         "Single Leg CMJ Jump Height — LSI (%)",
+  "EcBra_SLCMJL_":     "Single Leg CMJ Eccentric Braking Impulse — Left (N·s)",
+  "EcBra_SLCMJR_":     "Single Leg CMJ Eccentric Braking Impulse — Right (N·s)",
+  "LSI_EcBra_SLCMJ_":  "Single Leg CMJ Eccentric Braking Impulse — LSI (%)",
+  "EcDel_SLCMJL_":     "Single Leg CMJ Eccentric Deceleration Impulse — Left (N·s)",
+  "EcDel_SLCMJR_":     "Single Leg CMJ Eccentric Deceleration Impulse — Right (N·s)",
+  "LSI_EcDel_SLCMJ_":  "Single Leg CMJ Eccentric Deceleration Impulse — LSI (%)",
+  "ci_left_SL_":        "Single Leg CMJ Concentric Impulse — Left (N·s)",
+  "ci_right_SL_":       "Single Leg CMJ Concentric Impulse — Right (N·s)",
+  "LSI_ci_SL_":         "Single Leg CMJ Concentric Impulse — LSI (%)",
+  "ciP1_left_SL_":      "Single Leg CMJ Concentric Impulse Early Phase — Left (N·s)",
+  "ciP1_right_SL_":     "Single Leg CMJ Concentric Impulse Early Phase — Right (N·s)",
+  "LSI_ciP1_SL_":       "Single Leg CMJ Concentric Impulse Early Phase — LSI (%)",
+  "ciP2_left_SL_":      "Single Leg CMJ Concentric Impulse Late Phase — Left (N·s)",
+  "ciP2_right_SL_":     "Single Leg CMJ Concentric Impulse Late Phase — Right (N·s)",
+  "LSI_ciP2_SL_":       "Single Leg CMJ Concentric Impulse Late Phase — LSI (%)",
+  // ── PERFORMANCE: SL Drop Jump ────────────────────────────────────
+  "rsidj_left_SL_":    "Single Leg Drop Jump Reactive Strength Index — Left (m/s)",
+  "rsidj_right_SL_":   "Single Leg Drop Jump Reactive Strength Index — Right (m/s)",
+  "LSI_rsidj_SL_":     "Single Leg Drop Jump Reactive Strength Index — LSI (%)",
+  "jhSL_djL_":         "Single Leg Drop Jump Height — Left (cm)",
+  "jhSL_djR_":         "Single Leg Drop Jump Height — Right (cm)",
+  "LSI_jhSL_dj_":      "Single Leg Drop Jump Height — LSI (%)",
+  "ct_SL_djL_":        "Single Leg Drop Jump Ground Contact Time — Left (s)",
+  "ct_SL_djR_":        "Single Leg Drop Jump Ground Contact Time — Right (s)",
+  "LSI_ctSL_dj_":      "Single Leg Drop Jump Ground Contact Time — LSI (%)",
+  "act_SL_djL_":       "Single Leg Drop Jump Active Stiffness Index — Left (N)",
+  "act_SL_djR_":       "Single Leg Drop Jump Active Stiffness Index — Right (N)",
+  "LSI_act_SL_dj_":    "Single Leg Drop Jump Active Stiffness Index — LSI (%)",
+  "dof_SL_L_":         "Single Leg Drop Jump Drive-Off Force — Left (N)",
+  "dof_SL_R_":         "Single Leg Drop Jump Drive-Off Force — Right (N)",
+  "LSI_dof_SL_":       "Single Leg Drop Jump Drive-Off Force — LSI (%)",
+  // ── PERFORMANCE: SL 10-5 Repeated Hops ──────────────────────────
+  "105rsiL_SL_":       "Single Leg 10-5 Repeated Hops RSI — Left (m/s)",
+  "105rsiR_SL_":       "Single Leg 10-5 Repeated Hops RSI — Right (m/s)",
+  "LSI_105rsi_SL_":    "Single Leg 10-5 Repeated Hops RSI — LSI (%)",
+  "105jhL_SL_":        "Single Leg 10-5 Repeated Hops Jump Height — Left (cm)",
+  "105jhR_SL_":        "Single Leg 10-5 Repeated Hops Jump Height — Right (cm)",
+  "LSI_105jh_SL_":     "Single Leg 10-5 Repeated Hops Jump Height — LSI (%)",
+  "105ctL_SL_":        "Single Leg 10-5 Repeated Hops Ground Contact Time — Left (s)",
+  "105ctR_SL_":        "Single Leg 10-5 Repeated Hops Ground Contact Time — Right (s)",
+  "LSI_105ct_SL_":     "Single Leg 10-5 Repeated Hops Ground Contact Time — LSI (%)",
+  // ── PERFORMANCE: Triple Forward Hop ─────────────────────────────
+  "triforhop_L_":      "Triple Forward Hop Distance — Left (cm)",
+  "triforhop_R_":      "Triple Forward Hop Distance — Right (cm)",
+  "LSI_triforhop_":    "Triple Forward Hop Distance — LSI (%)",
+  // ── PERFORMANCE: SL Squat ────────────────────────────────────────
+  "sq_cppL_":          "Single Leg Squat Concentric Peak Power — Left (W)",
+  "sq_cppR_":          "Single Leg Squat Concentric Peak Power — Right (W)",
+  "LSI_sqcpp_":        "Single Leg Squat Concentric Peak Power — LSI (%)",
 };
 
 function metricLabel(m){ return METRIC_LABELS[m]||m.replace(/_/g,' ') }
+
+// Smart bin count based on metric type and data range.
+// LSI metrics → 20 bins (range ~40–160, fine resolution needed).
+// Contact-time / ratio / RSI metrics with tight range → 12 bins.
+// Large-range absolute metrics (Nm, N, W, N·s, cm) → 20 bins.
+// Very wide range (stiffness index 1000s–10000s) → 15 bins.
+function smartBins(m, vals){
+  if(m.includes('LSI')) return 20;
+  const range = Math.max(...vals) - Math.min(...vals);
+  // Contact time (seconds, range ~0.1–0.4) and small ratio metrics
+  if(m.startsWith('ct_') || m.startsWith('105ct') || m === 'ct_DL_dj_') return 12;
+  if(m.startsWith('Re') || m.startsWith('HQ') || m.startsWith('rsidj') || m.startsWith('105rsi')) return 15;
+  // Very wide range (stiffness index, drive-off force, power)
+  if(range > 5000) return 15;
+  // Moderate range (Nm, N, N·s, cm, W)
+  return 20;
+}
 
 // ========================================================================
 // Init
@@ -514,52 +719,148 @@ function getTagPicker(containerId){
   return Array.from(container.querySelectorAll('.tag-item.selected')).map(t=>t.dataset.value);
 }
 
+// ── Metric grouping structure (mirrors metric_labels.json section headers) ──
+// Each entry: { category: 'Strength'|'Performance', label: string, keys: [...] }
+const METRIC_GROUPS = [
+  // ── STRENGTH ─────────────────────────────────────────────────────────────
+  { category:'Strength', label:'Knee Extension — Isometric', keys:[
+    'ExtIsoL_','ExtIsoR_','ExtIsoLSI_',
+    'ReExtIsoL_','ReExtIsoR_',
+    'IsoPt200L_ext_','IsoPt200R_ext_','LSI_Isopt200_ext_',
+  ]},
+  { category:'Strength', label:'Knee Extension — Concentric', keys:[
+    'ExtConL_','ExtConR_','ExtConLSI_',
+    'ReExtConL_','ReExtConR_',
+    'Jang_ptL_ext_','Jang_ptR_ext_','LSI_Jang_ext_',
+  ]},
+  { category:'Strength', label:'Knee Extension — Eccentric', keys:[
+    'ExtEccL_','ExtEccR_','ExtEccLSI_',
+    'ReExtEccL_','ReExtEccR_',
+  ]},
+  { category:'Strength', label:'Knee Flexion — Isometric', keys:[
+    'FleIsoL_','FleIsoR_','FleIsoLSI_',
+    'ReFleIsoL_','ReFleIsoR_',
+    'IsoPt200L_fle_','IsoPt200R_fle_','LSI_Isopt200_fle_',
+  ]},
+  { category:'Strength', label:'Knee Flexion — Concentric', keys:[
+    'FleConL_','FleConR_','FleConLSI_',
+    'ReFleConL_','ReFleConR_',
+    'Jang_ptL_fle_','Jang_ptR_fle_','LSI_Jang_fle_',
+  ]},
+  { category:'Strength', label:'Knee Flexion — Eccentric', keys:[
+    'FleEccL_','FleEccR_','FleEccLSI_',
+    'ReFleEccL_','ReFleEccR_',
+  ]},
+  { category:'Strength', label:'H:Q Ratios', keys:[
+    'HQcc_L_','HQcc_R_','LSI_HQcc_',
+    'HQec_L_','HQec_R_','LSI_HQec_',
+  ]},
+  { category:'Strength', label:'Ankle Plantarflexion', keys:[
+    'PlLeft_','PlRight_','PlLSI_',
+    'ReLeft_','ReRight_',
+  ]},
+  { category:'Strength', label:'Hip Adduction', keys:[
+    'AdLeft_','AdRight_','AdLSI_',
+    'ReAdLeft_','ReAdRight_',
+  ]},
+  { category:'Strength', label:'Hip Abduction', keys:[
+    'AbLeft_','AbRight_','AbLSI_',
+    'ReAbLeft_','ReAbRight_',
+  ]},
+  // ── PERFORMANCE ──────────────────────────────────────────────────────────
+  { category:'Performance', label:'DL Countermovement Jump', keys:[
+    'jhDL_',
+    'EcDel_DLCMJ_L_','EcDel_DLCMJ_R_','LSI_EcDel_DLCMJ_',
+    'ci_left_DL_','ci_right_DL_','LSI_ci_DL_',
+    'pf_left_DL_','pf_right_DL_','LSI_pf_DL_',
+  ]},
+  { category:'Performance', label:'DL Drop Jump', keys:[
+    'rsidj_DL_','jhDL_dj_','ct_DL_dj_','asi_DL_dj_',
+    'dof_DL_L_','dof_DL_R_','LSI_dof_DL_',
+    'pk_left_DLdj_','pk_right_DLdj_','LSI_pk_DLDJ_',
+  ]},
+  { category:'Performance', label:'DL 10-5 Repeated Hops', keys:[
+    '105rsi_DL_','105jh_DL_','105ct_DL_',
+  ]},
+  { category:'Performance', label:'SL Countermovement Jump', keys:[
+    'jhSL_L_','jhSL_R_','LSI_jhSL_',
+    'EcBra_SLCMJL_','EcBra_SLCMJR_','LSI_EcBra_SLCMJ_',
+    'EcDel_SLCMJL_','EcDel_SLCMJR_','LSI_EcDel_SLCMJ_',
+    'ci_left_SL_','ci_right_SL_','LSI_ci_SL_',
+    'ciP1_left_SL_','ciP1_right_SL_','LSI_ciP1_SL_',
+    'ciP2_left_SL_','ciP2_right_SL_','LSI_ciP2_SL_',
+  ]},
+  { category:'Performance', label:'SL Drop Jump', keys:[
+    'rsidj_left_SL_','rsidj_right_SL_','LSI_rsidj_SL_',
+    'jhSL_djL_','jhSL_djR_','LSI_jhSL_dj_',
+    'ct_SL_djL_','ct_SL_djR_','LSI_ctSL_dj_',
+    'act_SL_djL_','act_SL_djR_','LSI_act_SL_dj_',
+    'dof_SL_L_','dof_SL_R_','LSI_dof_SL_',
+  ]},
+  { category:'Performance', label:'SL 10-5 Repeated Hops', keys:[
+    '105rsiL_SL_','105rsiR_SL_','LSI_105rsi_SL_',
+    '105jhL_SL_','105jhR_SL_','LSI_105jh_SL_',
+    '105ctL_SL_','105ctR_SL_','LSI_105ct_SL_',
+  ]},
+  { category:'Performance', label:'Triple Forward Hop', keys:[
+    'triforhop_L_','triforhop_R_','LSI_triforhop_',
+  ]},
+  { category:'Performance', label:'SL Squat', keys:[
+    'sq_cppL_','sq_cppR_','LSI_sqcpp_',
+  ]},
+];
+
+function buildGroupedPills(container, onToggle){
+  container.innerHTML = '';
+  let lastCategory = null;
+  METRIC_GROUPS.forEach(group => {
+    // Insert top-level category divider (Strength / Performance) if changed
+    if(group.category !== lastCategory){
+      const catHeader = document.createElement('span');
+      catHeader.className = 'metric-category-header';
+      catHeader.textContent = group.category;
+      container.appendChild(catHeader);
+      lastCategory = group.category;
+    }
+    // Group wrapper
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'metric-group';
+    const groupLabel = document.createElement('span');
+    groupLabel.className = 'metric-group-label';
+    groupLabel.textContent = group.label;
+    groupDiv.appendChild(groupLabel);
+    // Pills within group
+    group.keys.forEach(m => {
+      if(!METRIC_LABELS[m]) return; // skip if not in labels
+      const pill = document.createElement('span');
+      pill.className = 'metric-pill' + (selectedMetrics.includes(m) ? ' selected' : '');
+      pill.textContent = metricLabel(m);
+      pill.dataset.metric = m;
+      pill.onclick = () => {
+        if(selectedMetrics.includes(m)){
+          selectedMetrics = selectedMetrics.filter(x => x !== m);
+          pill.classList.remove('selected');
+        } else {
+          selectedMetrics.push(m);
+          pill.classList.add('selected');
+        }
+        onToggle();
+      };
+      groupDiv.appendChild(pill);
+    });
+    container.appendChild(groupDiv);
+  });
+}
+
 function buildMetricSelector(){
   const container = document.getElementById('metric-selector');
-  const allMetrics = Object.keys(METRIC_LABELS);
-  allMetrics.forEach(m=>{
-    const pill = document.createElement('span');
-    pill.className = 'metric-pill' + (selectedMetrics.includes(m)?' selected':'');
-    pill.textContent = metricLabel(m);
-    pill.dataset.metric = m;
-    pill.onclick = ()=>{
-      if(selectedMetrics.includes(m)){
-        selectedMetrics = selectedMetrics.filter(x=>x!==m);
-        pill.classList.remove('selected');
-      }else{
-        selectedMetrics.push(m);
-        pill.classList.add('selected');
-      }
-      // keep sim selector in sync
-      syncSimMetricSelector();
-    };
-    container.appendChild(pill);
-  });
+  buildGroupedPills(container, syncSimMetricSelector);
 }
 
 function buildSimMetricSelector(){
   const container = document.getElementById('sim-metric-selector');
   if(!container) return;
-  container.innerHTML = '';
-  const allMetrics = Object.keys(METRIC_LABELS);
-  allMetrics.forEach(m=>{
-    const pill = document.createElement('span');
-    pill.className = 'metric-pill' + (selectedMetrics.includes(m)?' selected':'');
-    pill.textContent = metricLabel(m);
-    pill.dataset.metric = m;
-    pill.onclick = ()=>{
-      if(selectedMetrics.includes(m)){
-        selectedMetrics = selectedMetrics.filter(x=>x!==m);
-        pill.classList.remove('selected');
-      }else{
-        selectedMetrics.push(m);
-        pill.classList.add('selected');
-      }
-      // keep population report selector in sync
-      syncPopMetricSelector();
-    };
-    container.appendChild(pill);
-  });
+  buildGroupedPills(container, syncPopMetricSelector);
 }
 
 function syncSimMetricSelector(){
@@ -573,6 +874,7 @@ function syncPopMetricSelector(){
     p.classList.toggle('selected', selectedMetrics.includes(p.dataset.metric));
   });
 }
+
 
 // ========================================================================
 // Filters
@@ -595,6 +897,39 @@ function togglePopFilter(){
   const collapsed = body.style.display === 'none';
   body.style.display = collapsed ? '' : 'none';
   chevron.style.transform = collapsed ? '' : 'rotate(-90deg)';
+}
+
+// Toggle Population Report metric selector
+function togglePopMetrics(){
+  const body = document.getElementById('pop-metric-body');
+  const btn  = document.getElementById('pop-metric-toggle');
+  const lbl  = document.getElementById('pop-metric-toggle-label');
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? '' : 'none';
+  btn.classList.toggle('collapsed', !collapsed);
+  lbl.textContent = collapsed ? 'Hide' : 'Show';
+}
+
+// Toggle Similar Patients filter panel
+function toggleSimFilters(){
+  const body = document.getElementById('sim-filter-body');
+  const btn  = document.getElementById('sim-filter-toggle');
+  const lbl  = document.getElementById('sim-filter-toggle-label');
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? '' : 'none';
+  btn.classList.toggle('collapsed', !collapsed);
+  lbl.textContent = collapsed ? 'Show Filters' : 'Hide Filters';
+}
+
+// Toggle Similar Patients metric selector
+function toggleSimMetrics(){
+  const body = document.getElementById('sim-metric-body');
+  const btn  = document.getElementById('sim-metric-toggle');
+  const lbl  = document.getElementById('sim-metric-toggle-label');
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? '' : 'none';
+  btn.classList.toggle('collapsed', !collapsed);
+  lbl.textContent = collapsed ? 'Show' : 'Hide';
 }
 
 function resetFilters(){
@@ -661,9 +996,9 @@ function renderReportingTab(data){
     box.innerHTML=`<h3>${metricLabel(m)} (n=${s.n})</h3><canvas id="chart-${m}"></canvas>`;
     chartContainer.appendChild(box);
 
-    // Build histogram bins
+    // Build histogram bins — bin count adapts to metric type
     const vals = s.values;
-    const bins = 20;
+    const bins = smartBins(m, vals);
     const min = Math.min(...vals), max = Math.max(...vals);
     const step = (max-min)/bins || 1;
     const counts = new Array(bins).fill(0);
@@ -727,6 +1062,10 @@ function renderSimCharts(data, patientId){
     : `(${baseLabel})`;
   document.getElementById('sim-chart-count').textContent = countLabel;
 
+  // Show arrow legend only when a specific patient is being compared
+  const arrowLegend = document.getElementById('sim-arrow-legend');
+  if(arrowLegend) arrowLegend.style.display = patientId ? 'flex' : 'none';
+
   selectedMetrics.forEach(m=>{
     // Collect values from similar patients (exclude index patient for cohort bars)
     const cohortVals = [];
@@ -751,8 +1090,9 @@ function renderSimCharts(data, patientId){
 
     if(cohortVals.length === 0 && patientVal === null) return;
 
+    // All values (cohort + patient) define the bin range
     const allVals = patientVal !== null ? [...cohortVals, patientVal] : cohortVals;
-    const bins = 15;
+    const bins = smartBins(m, allVals);
     const minV = Math.min(...allVals), maxV = Math.max(...allVals);
     const step = (maxV - minV) / bins || 1;
     const counts = new Array(bins).fill(0);
@@ -760,10 +1100,20 @@ function renderSimCharts(data, patientId){
     for(let i=0;i<bins;i++){
       const lo = minV + i*step;
       labels.push(lo.toFixed(1));
-      cohortVals.forEach(v=>{ if(v>=lo && v<lo+step) counts[i]++; });
+      // Count ALL values (cohort + patient) — arrow will mark the patient bin
+      allVals.forEach(v=>{ if(v>=lo && v<lo+step) counts[i]++; });
     }
-    // last bin inclusive
-    cohortVals.forEach(v=>{ if(v===maxV) counts[bins-1]++; });
+    allVals.forEach(v=>{ if(v===maxV) counts[bins-1]++; });
+
+    // Find which bin the patient falls in
+    let patientBinIdx = -1;
+    if(patientVal !== null){
+      for(let i=0;i<bins;i++){
+        const lo = minV + i*step;
+        if(patientVal >= lo && patientVal < lo+step){ patientBinIdx = i; break; }
+      }
+      if(patientBinIdx === -1) patientBinIdx = bins-1;
+    }
 
     const isLSI = m.includes('LSI');
     const barColors = counts.map((_,i)=>{
@@ -772,58 +1122,201 @@ function renderSimCharts(data, patientId){
       return mid>=90?'rgba(16,185,129,0.55)':mid>=80?'rgba(245,158,11,0.55)':'rgba(239,68,68,0.55)';
     });
 
+    // Y-max: add headroom for the arrow if patient is in the tallest bin
+    const rawMax = Math.max(...counts);
+    const patientIsHighest = patientBinIdx >= 0 && counts[patientBinIdx] === rawMax;
+    const yMax = patientIsHighest ? Math.ceil(rawMax * 1.35) : undefined;
+
+    const titleSuffix = patientVal !== null
+      ? ` — Your Patient: ${patientVal.toFixed(1)}`
+      : '';
     const box = document.createElement('div');
     box.className = 'chart-box';
-    box.innerHTML = `<h3>${metricLabel(m)} — Similar Cohort (n=${cohortVals.length}${patientVal!==null?', index overlaid':''})</h3><canvas id="simchart-${m}"></canvas>`;
+    box.innerHTML = `<h3>${metricLabel(m)} — Similar Cohort (n=${cohortVals.length + (patientVal!==null?1:0)}${titleSuffix})</h3><canvas id="simchart-${m}"></canvas>`;
     chartContainer.appendChild(box);
 
-    // Annotation line for patient value
-    const annotations = {};
-    if(patientVal !== null){
-      // find which bin label is closest for x-axis annotation
-      annotations['patientLine'] = {
-        type: 'line',
-        scaleID: 'x',
-        value: patientVal.toFixed(1),
-        borderColor: 'rgba(239,68,68,0.9)',
-        borderWidth: 2,
-        borderDash: [5,4],
-        label: { content: `Patient: ${patientVal.toFixed(1)}`, display: true, position: 'start', font:{size:10}, color:'#ef4444', backgroundColor:'rgba(255,255,255,0.85)' }
-      };
-    }
+    // Inline plugin: draw a red downward arrow above the patient's bin after render
+    const arrowPlugin = patientBinIdx >= 0 ? {
+      id: 'patientArrow_' + m,
+      afterDatasetsDraw(chart){
+        const ctx = chart.ctx;
+        const meta = chart.getDatasetMeta(0);
+        if(!meta.data[patientBinIdx]) return;
+        const bar = meta.data[patientBinIdx];
+        const x = bar.x;
+        const barTop = bar.y;
+        const arrowTip = barTop - 6;   // just above the bar top
+        const arrowBase = arrowTip - 18; // shaft start
+        const headH = 7, headW = 6;
 
-    // Add 90% LSI threshold line
-    if(isLSI){
-      annotations['threshold'] = {
-        type: 'line',
-        scaleID: 'x',
-        value: '90.0',
-        borderColor: 'rgba(16,185,129,0.7)',
-        borderWidth: 1.5,
-        borderDash: [4,3],
-        label: { content: 'RTS 90%', display: true, position: 'end', font:{size:9}, color:'#10b981', backgroundColor:'rgba(255,255,255,0.8)' }
-      };
-    }
+        ctx.save();
+        ctx.strokeStyle = 'rgba(220,38,38,1)';
+        ctx.fillStyle   = 'rgba(220,38,38,1)';
+        ctx.lineWidth   = 2;
+
+        // Shaft
+        ctx.beginPath();
+        ctx.moveTo(x, arrowBase);
+        ctx.lineTo(x, arrowTip - headH);
+        ctx.stroke();
+
+        // Arrowhead (filled triangle pointing down)
+        ctx.beginPath();
+        ctx.moveTo(x, arrowTip);
+        ctx.lineTo(x - headW, arrowTip - headH);
+        ctx.lineTo(x + headW, arrowTip - headH);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+      }
+    } : null;
 
     simCharts[m] = new Chart(document.getElementById('simchart-'+m), {
       type:'bar',
       data:{labels, datasets:[{data:counts, backgroundColor:barColors, borderRadius:3}]},
+      plugins: arrowPlugin ? [arrowPlugin] : [],
       options:{
         plugins:{
-          legend:{display:false},
-          annotation: Object.keys(annotations).length ? {annotations} : undefined
+          legend:{ display: false },
+          tooltip:{
+            callbacks:{
+              title: items => `${metricLabel(m)}: ${items[0].label}`,
+              label: item => {
+                const isPatientBin = (patientBinIdx === item.dataIndex);
+                const cohortN = isPatientBin ? item.raw - 1 : item.raw;
+                return isPatientBin && patientVal !== null
+                  ? [`Cohort: ${cohortN}`, `Your patient: ${patientVal.toFixed(1)}`]
+                  : `Count: ${item.raw}`;
+              }
+            }
+          }
         },
         scales:{
           x:{title:{display:true,text:metricLabel(m)},ticks:{maxTicksLimit:8}},
-          y:{title:{display:true,text:'Count'},beginAtZero:true}
+          y:{
+            title:{display:true,text:'Count'},
+            beginAtZero:true,
+            max: yMax,
+            ticks:{ stepSize:1, precision:0 }
+          }
         },
-        animation:{duration:300}
+        animation:{
+          duration:300,
+          onComplete(){ this.draw(); } // ensure arrow redraws after animation
+        }
       }
     });
   });
 }
 
-function clearSimilarFilters(){
+// ── Patient ID auto-fill ────────────────────────────────────────────────────
+
+// Map CSV column name → { type, id }
+// type: 'tagpicker' | 'age'
+const PATIENT_FIELD_MAP = [
+  { col: 'Sex',                  type: 'tagpicker', id: 'tp-sex'        },
+  { col: 'Sport',                type: 'tagpicker', id: 'tp-sport'      },
+  { col: 'Symptom',              type: 'tagpicker', id: 'tp-symptom'    },
+  { col: 'Injury_Limb',         type: 'tagpicker', id: 'tp-limb'       },
+  { col: 'Post_Surgery_Progress',type: 'tagpicker', id: 'tp-months'     },
+  { col: 'Competition_Level',   type: 'tagpicker', id: 'tp-comp'       },
+  { col: 'Dom_Jump_Leg',        type: 'tagpicker', id: 'tp-dom-jump'   },
+  { col: 'Dom_Kick_Leg',        type: 'tagpicker', id: 'tp-dom-kick'   },
+  { col: 'Injury_Mechanism',    type: 'tagpicker', id: 'tp-mechanism'  },
+  { col: 'Surgical_Procedure',  type: 'tagpicker', id: 'tp-procedure'  },
+  { col: 'Graft_Type',          type: 'tagpicker', id: 'tp-graft'      },
+  { col: 'Surgeon',              type: 'tagpicker', id: 'tp-surgeon'    },
+  { col: 'Previous_ACLR',       type: 'tagpicker', id: 'tp-prev-aclr'  },
+  { col: 'Other_LL_Injuries',   type: 'tagpicker', id: 'tp-other-ll'   },
+  { col: 'Rehab_Freq_per_Week', type: 'tagpicker', id: 'tp-rehab-freq' },
+  { col: 'Rehab_Supervised',    type: 'tagpicker', id: 'tp-rehab-sup'  },
+  { col: 'Family_ACL_History',  type: 'tagpicker', id: 'tp-family-acl' },
+];
+
+function setTagPickerValue(containerId, value){
+  if(value === null || value === undefined) return;
+  const str = String(value);
+  const container = document.getElementById(containerId);
+  if(!container) return;
+  // Deselect all first, then select matching tag
+  container.querySelectorAll('.tag-item').forEach(t => {
+    if(t.dataset.value === str){
+      t.classList.add('selected');
+    }
+  });
+}
+
+async function confirmPatientId(){
+  const pid = document.getElementById('sim-patient-id').value.trim();
+  const statusEl = document.getElementById('sim-patient-status');
+  const clearBtn = document.getElementById('sim-clear-patient-btn');
+
+  if(!pid){
+    statusEl.textContent = '';
+    statusEl.style.color = '';
+    return;
+  }
+
+  statusEl.textContent = 'Looking up…';
+  statusEl.style.color = 'var(--muted)';
+
+  try {
+    const r = await fetch(`/api/patient/${encodeURIComponent(pid)}`);
+    if(!r.ok){
+      statusEl.textContent = `✗ Patient "${pid}" not found`;
+      statusEl.style.color = 'var(--danger)';
+      clearBtn.style.display = 'none';
+      return;
+    }
+    const rows = await r.json();
+    if(!rows || rows.length === 0){
+      statusEl.textContent = `✗ No data for "${pid}"`;
+      statusEl.style.color = 'var(--danger)';
+      clearBtn.style.display = 'none';
+      return;
+    }
+
+    // Use the first (most recent or only) record
+    const p = rows[0];
+
+    // Clear all filter tags first
+    clearSimilarFiltersOnly();
+
+    // Fill age range to ±2 years of patient age
+    if(p.Age !== null && p.Age !== undefined){
+      document.getElementById('sim-age-min').value = Math.max(14, p.Age - 2);
+      document.getElementById('sim-age-max').value = Math.min(80, p.Age + 2);
+    }
+
+    // Fill tag pickers
+    PATIENT_FIELD_MAP.forEach(({col, id}) => {
+      if(p[col] !== null && p[col] !== undefined){
+        setTagPickerValue(id, p[col]);
+      }
+    });
+
+    const recordCount = rows.length;
+    statusEl.textContent = `✓ "${pid}" found (${recordCount} record${recordCount>1?'s':''}) — filters filled. Adjust if needed, then click Search.`;
+    statusEl.style.color = 'var(--success)';
+    clearBtn.style.display = '';
+
+  } catch(e) {
+    statusEl.textContent = `Error: ${e.message}`;
+    statusEl.style.color = 'var(--danger)';
+  }
+}
+
+function clearPatientId(){
+  document.getElementById('sim-patient-id').value = '';
+  document.getElementById('sim-patient-status').textContent = '';
+  document.getElementById('sim-patient-status').style.color = '';
+  document.getElementById('sim-clear-patient-btn').style.display = 'none';
+  clearSimilarFiltersOnly();
+}
+
+// Clears filter selections only (not results cards, not patient ID)
+function clearSimilarFiltersOnly(){
   const tpIds = ['tp-sex','tp-sport','tp-symptom','tp-limb','tp-months','tp-comp',
     'tp-dom-jump','tp-dom-kick','tp-mechanism','tp-procedure','tp-graft','tp-surgeon',
     'tp-prev-aclr','tp-other-ll','tp-rehab-freq','tp-rehab-sup','tp-family-acl'];
@@ -833,7 +1326,17 @@ function clearSimilarFilters(){
   });
   document.getElementById('sim-age-min').value = '';
   document.getElementById('sim-age-max').value = '';
+}
+
+function clearSimilarFilters(){
+  // Reset patient ID + status
   document.getElementById('sim-patient-id').value = '';
+  document.getElementById('sim-patient-status').textContent = '';
+  document.getElementById('sim-patient-status').style.color = '';
+  document.getElementById('sim-clear-patient-btn').style.display = 'none';
+  // Reset all filter selections
+  clearSimilarFiltersOnly();
+  // Hide results
   document.getElementById('similar-results').style.display = 'none';
   document.getElementById('sim-metric-card').style.display = 'none';
   document.getElementById('sim-chart-card').style.display = 'none';
@@ -892,20 +1395,20 @@ async function findSimilar(){
     return;
   }
 
-  // Friendly column labels
+  // Friendly column labels — demographic fields + all metric codes from METRIC_LABELS
   const COL_LABELS = {
-    Patient_ID:'Patient ID', Age:'Age', Sex:'Sex', Sport:'Sport', Symptom:'Condition',
-    Injury_Limb:'Inj. Limb', Post_Surgery_Progress:'Post-Op Mo.',
+    // Demographic / clinical fields
+    Patient_ID:'Patient ID', Age:'Age (yrs)', Sex:'Sex', Sport:'Sport',
+    Symptom:'Condition', Injury_Limb:'Injured Limb', Post_Surgery_Progress:'Post-Op (mo.)',
     Height_cm:'Height (cm)', Weight_kg:'Weight (kg)',
-    Competition_Level:'Comp. Level', Dom_Jump_Leg:'Dom. Jump', Dom_Kick_Leg:'Dom. Kick',
-    Injury_Mechanism:'Mechanism', Surgical_Procedure:'Procedure', Graft_Type:'Graft',
-    Surgeon:'Surgeon', Previous_ACLR:'Prev. ACLR', Other_LL_Injuries:'Other LL Inj.',
-    Rehab_Freq_per_Week:'Rehab Freq', Rehab_Supervised:'Rehab Sup.',
-    Family_ACL_History:'Family ACL',
-    ExtIsoLSI_:'Ext Iso LSI', ExtConLSI_:'Ext Con LSI',
-    FleIsoLSI_:'Fle Iso LSI', FleConLSI_:'Fle Con LSI',
-    LSI_jhSL_:'SL JH LSI', LSI_rsidj_SL_:'SL RSI LSI',
-    LSI_triforhop_:'Tri Hop LSI', HQcc_L_:'H:Q cc L', HQcc_R_:'H:Q cc R',
+    Competition_Level:'Competition Level', Dom_Jump_Leg:'Dom. Jump Leg', Dom_Kick_Leg:'Dom. Kick Leg',
+    Injury_Mechanism:'Injury Mechanism', Surgical_Procedure:'Surgical Procedure',
+    Graft_Type:'Graft Type', Surgeon:'Surgeon',
+    Previous_ACLR:'Previous ACLR', Other_LL_Injuries:'Other LL Injuries',
+    Rehab_Freq_per_Week:'Rehab Freq/Week', Rehab_Supervised:'Rehab Supervised',
+    Family_ACL_History:'Family ACL History',
+    // Metric codes — use full clinical names from METRIC_LABELS
+    ...METRIC_LABELS,
   };
 
   const cols = Object.keys(tablePatients[0]);
