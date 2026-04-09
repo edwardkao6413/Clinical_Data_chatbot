@@ -1,3 +1,17 @@
+---
+name: osvi-biomechanics-database
+description: >
+  Master project skill for the OSVi Biomechanics Database and Dashboard. Provides full
+  context needed to work on the database, prototype dashboard, AI chatbot, reporting,
+  or the harness engineering pipeline. Read this before performing any task related to
+  data analysis, code changes, dashboard improvements, or clinical reporting. Trigger
+  for any task involving the OSVi population database, the Flask dashboard prototype,
+  metric definitions, or clinical biomechanics data.
+compatibility: >
+  Python 3.10+, Flask, pandas, anthropic SDK. ANTHROPIC_API_KEY environment variable
+  required for chatbot functionality. Runs on localhost:5050.
+---
+
 # OSVi Biomechanics Database — Project Skill
 
 This document provides the full context needed to work intelligently on the OSVi Biomechanics Database project. Read this before performing any task related to the database, prototype, chatbot, or reporting.
@@ -28,21 +42,46 @@ OSVi_database_demo/               ← project root
 │   ├── app.py                    ← Flask server: loads CSV, API endpoints, Claude proxy
 │   ├── index.html                ← single-page dashboard (4 tabs)
 │   ├── requirements.txt          ← flask, anthropic, pandas
-│   └── knowledge/                ← (empty) folder for future RAG documents
+│   ├── knowledge/                ← (empty) folder for future RAG documents
+│   └── variants/                 ← generated dashboard variants (from harness Trial agent)
 │
 ├── references/                   ← background materials
-│   ├── OSVi_Biomechanics_Demo_Database_DataSummary.md   ← statistical summary of all columns
-│   ├── conversation_osvi_prototype.html                 ← prior planning conversation log
+│   ├── OSVi_Biomechanics_Demo_Database_DataSummary.md
+│   ├── metric_labels.json        ← source of truth for metric display names
+│   ├── conversation_osvi_prototype.html
 │   └── 2026_MARCH_WORKING TEMPLATE_PERFORMANCE REPORT_L4_MALES_Follow-up_FINAL.docx
-│                                                        ← clinical report template (Word)
 │
 ├── skills/                       ← knowledge base for AI tasks
-│   ├── SKILL.md                  ← this file
-│   └── OSVi_Biomechanics_Demo_Database_DataDictionary.md ← full column definitions
+│   ├── SKILL.md                  ← this file (master project skill)
+│   ├── skills-create-doc.txt     ← field schema requirements for new SKILL.md files
+│   ├── OSVi_Biomechanics_Demo_Database_DataDictionary.md
+│   │
+│   ├── harness/                  ← harness engineering pipeline skills
+│   │   ├── 1_trial/SKILL.md      ← Trial agent: generate dashboard variants
+│   │   ├── 2_role/SKILL.md       ← Role agent: define and maintain audience personas
+│   │   ├── 3_tasks/SKILL.md      ← Tasks agent: execute user scenarios against variants
+│   │   └── 4_evaluator/SKILL.md  ← Evaluator agent: score and rank variants
+│   │
+│   ├── shared/                   ← shared reference files used by multiple agents
+│   │   ├── personas.md           ← audience persona definitions
+│   │   ├── test_scenarios.md     ← user scenario test cases
+│   │   └── scoring_rubric.md     ← evaluation criteria and scoring scales
+│   │
+│   ├── osvi-dashboard-guideline/ ← general OSVi dashboard design standards
+│   │   └── SKILL.md
+│   │
+│   └── company-info/             ← OSVi organisational knowledge (from GitHub repo)
+│       ├── osvi-clinical-capabilities/SKILL.md
+│       ├── osvi-cordi-functions/SKILL.md
+│       ├── osvi-identity/SKILL.md
+│       └── osvi-people-structure/SKILL.md
 │
 ├── tmp/
-│   └── OSVi_Biomechanics_Demo_Database.csv  ← the demo database (2,000 rows × 141 cols)
+│   ├── OSVi_Biomechanics_Demo_Database.csv             ← demo database (2,000 rows × 155 cols)
+│   └── OSVi_Biomechanics_Demo_Database_ORIGINAL_BACKUP.csv
 │
+├── harness.txt                   ← harness engineering briefing document
+├── feedback.txt                  ← development feedback and pipeline notes
 └── prototype.txt                 ← original project brief
 ```
 
@@ -193,7 +232,46 @@ Only LSI columns are colour-coded: ≥90% green, 80–89% amber, <80% red. Non-L
 
 ---
 
-## 6. Known Limitations & Planned Improvements
+## 6. Harness Engineering Pipeline
+
+OSVi uses a harness engineering approach to iteratively improve the dashboard. The pipeline
+has four stages, each managed by a dedicated agent skill:
+
+| Stage | Agent | Skill Location | Purpose |
+|---|---|---|---|
+| 1. Trial | osvi-harness-trial | `skills/harness/1_trial/SKILL.md` | Generate 2-3 distinct dashboard variants per run |
+| 2. Role | osvi-harness-role | `skills/harness/2_role/SKILL.md` | Define and maintain audience personas |
+| 3. Tasks | osvi-harness-tasks | `skills/harness/3_tasks/SKILL.md` | Execute user scenarios against each variant |
+| 4. Evaluator | osvi-harness-evaluator | `skills/harness/4_evaluator/SKILL.md` | Score variants using a rubric and rank them |
+
+**Pipeline flow:**
+```
+Role (personas) ──────────────────────────────────┐
+                                                   ↓
+Trial (generate variants) → Tasks (test) → Evaluator (score & rank)
+                                                   ↓
+                                          Best version selected
+```
+
+**Operational Execution Rules:**
+1. **No Score Reporting:** When running the harness engineering pipeline, do not generate or output a detailed score report to the user. Simply select the highest-scoring variant and apply it to update the dashboard.
+2. **Iterative Feedback:** After the dashboard is updated, the user will provide high-level, general feedback (not overly specific) which will be used by the pipeline to inform the next round of changes.
+
+**Key reference files for the harness:**
+- `harness.txt` — full briefing document (project context, personas, scenarios, rubric)
+- `skills/shared/personas.md` — audience persona definitions
+- `skills/shared/test_scenarios.md` — user scenario test cases (15 cases)
+- `skills/shared/scoring_rubric.md` — evaluation criteria (7 factors, 1-3 scale)
+
+**Dashboard design standards** are documented in `skills/osvi-dashboard-guideline/SKILL.md`.
+This guideline applies to all OSVi dashboards, not just this prototype.
+
+**Company context** (organisational identity, team structure, clinical capabilities, CORDi platform)
+is stored in `skills/company-info/` — sourced from the osvi-cloud/osvi-claude-skills GitHub repository.
+
+---
+
+## 7. Known Limitations & Planned Improvements
 
 | Area | Current state | Planned improvement |
 |---|---|---|
@@ -206,7 +284,7 @@ Only LSI columns are colour-coded: ≥90% green, 80–89% amber, <80% red. Non-L
 
 ---
 
-## 7. Key Abbreviations
+## 8. Key Abbreviations
 
 | Abbreviation | Meaning |
 |---|---|
@@ -230,7 +308,7 @@ Only LSI columns are colour-coded: ≥90% green, 80–89% amber, <80% red. Non-L
 
 ---
 
-## 8. Working with the Project — Guidelines for AI Assistance
+## 9. Working with the Project — Guidelines for AI Assistance
 
 - **Always read this file first** before performing any task involving data analysis, code changes, reporting, or chatbot improvements.
 - **For column definitions**, refer to `skills/OSVi_Biomechanics_Demo_Database_DataDictionary.md`.
@@ -243,11 +321,13 @@ Only LSI columns are colour-coded: ≥90% green, 80–89% amber, <80% red. Non-L
 
 ---
 
-## 9. Dashboard Editing — Noticed Things
+## 10. Dashboard Editing — Noticed Things
 
 > This section logs observations and standing rules that have come up during development. Update this section whenever something notable is discovered while editing the dashboard.
 
 - **Keep SKILL.md in sync:** Once any change is made to `index.html` (dashboard UI/logic) or `app.py` (backend/API), review this SKILL.md and update it if the change affects architecture, API endpoints, clinical logic, red-flag thresholds, similarity scoring, or known limitations. Do not leave SKILL.md stale after a dashboard update.
+
+- **Updating osvi-dashboard-guideline:** Not every change needs to be updated to osvi-dashboard-guideline. If the changes are more structural and whole picture stuff, then make the updates.
 
 - **Tag picker UI (Similar Patients):** All `<select multiple>` dropdowns in the Similar Patients section have been replaced with a custom click-to-toggle tag picker component. Tags use `.tag-picker` (container) and `.tag-item` (individual pill) classes. Click once to select (blue), click again to deselect. No Ctrl key required. JS helpers: `buildTagPicker(containerId, values)` builds the picker, `getTagPicker(containerId)` returns the array of selected values.
 
@@ -259,7 +339,7 @@ Only LSI columns are colour-coded: ≥90% green, 80–89% amber, <80% red. Non-L
 
 ---
 
-## 10. Metric Naming Convention
+## 11. Metric Naming Convention
 
 ### Source of truth
 All metric display names are defined in **`references/metric_labels.json`**.
@@ -296,4 +376,4 @@ Follow this pattern exactly when adding new metrics:
 
 ---
 
-*Last updated: April 2026 (metric naming convention + metric_labels.json) | Project: OSVi Clinical Population Data Query System*
+*Last updated: April 2026 (harness engineering pipeline, dashboard guideline, company-info skills, updated folder structure) | Project: OSVi Clinical Population Data Query System*

@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OSVi — Biomechanics Database</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
 <style>
 /* ===== Reset & Base ===== */
 *{margin:0;padding:0;box-sizing:border-box}
@@ -33,7 +35,7 @@ a{color:var(--primary);text-decoration:none}
 .pop-filter-card{padding:16px 20px}
 .pop-filter-header{display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none}
 .pop-filter-header:hover h2{color:var(--primary)}
-.pop-filter-grid{display:flex;flex-direction:column;gap:12px;align-items:stretch}
+.pop-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;align-items:end}
 .pop-filter-grid select,.pop-filter-grid input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:#fff;color:var(--text)}
 .pop-filter-grid select:focus,.pop-filter-grid input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
 .btn{padding:8px 16px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
@@ -65,9 +67,9 @@ a{color:var(--primary);text-decoration:none}
 .kpi.bad .value{color:var(--danger)}
 
 /* ===== Data Table ===== */
-.table-wrap{overflow-x:auto;overflow-y:auto;max-height:400px;margin-top:8px;border:1px solid var(--border);border-radius:6px;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.05)}
+.table-wrap{overflow-x:auto;margin-top:8px}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{background:#f8fafc;text-align:left;padding:8px 12px;border-bottom:2px solid var(--border);font-weight:600;color:var(--muted);white-space:nowrap;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 var(--border)}
+th{background:#f8fafc;text-align:left;padding:8px 12px;border-bottom:2px solid var(--border);font-weight:600;color:var(--muted);white-space:nowrap}
 td{padding:8px 12px;border-bottom:1px solid var(--border)}
 tr:hover td{background:#f8fafc}
 .lsi-cell{font-weight:600;border-radius:4px;padding:2px 8px;display:inline-block;min-width:48px;text-align:center}
@@ -78,7 +80,7 @@ tr:hover td{background:#f8fafc}
 /* ===== Charts ===== */
 .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .chart-box{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
-.chart-box h3{font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.4}
+.chart-box h3{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px}
 .chart-box canvas{width:100%!important;max-height:280px}
 
 /* ===== Chat ===== */
@@ -106,25 +108,14 @@ tr:hover td{background:#f8fafc}
 .form-group label{font-size:12px;font-weight:600;color:var(--muted)}
 .form-group input,.form-group select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px}
 
-/* ===== Metric Selector (TagBox & Library) ===== */
-.selected-tagbox { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; border: 1px solid rgba(37,99,235,0.4); border-radius: 8px; background: #fff; min-height: 44px; max-height: 130px; overflow-y: auto; align-items: center; box-shadow: inset 0 1px 3px rgba(0,0,0,0.03); margin-top:8px }
-.selected-tagbox .tag-item { background: var(--primary); color: #fff; border-color: var(--primary-dark); padding: 5px 12px; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; border-radius: 14px; cursor: pointer}
-.selected-tagbox .tag-item:after { content: "×"; font-weight: bold; opacity: 0.7; font-size: 16px; line-height: 0.8; }
-.selected-tagbox .tag-item:hover:after { opacity: 1; }
-
-.metric-details { margin-bottom: 0px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: #fff; border-bottom: none; }
-.metric-details:last-child { border-bottom: 1px solid var(--border); }
-.metric-summary { padding: 8px 12px; font-size: 13px; font-weight: 600; color: var(--text); background: #f8fafc; cursor: pointer; user-select: none; list-style:none; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
-.metric-summary::-webkit-details-marker { display: none; }
-.metric-details[open] .metric-summary { color: var(--primary); }
-.metric-details-content { padding: 12px; display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--border); }
-
-.metric-pill{padding:5px 10px;border-radius:12px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--muted);font-weight:500;transition:all 0.1s;}
-.metric-pill:hover{border-color:var(--primary);color:var(--primary)}
+/* ===== Metric Selector ===== */
+.metric-pills{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.metric-pill{padding:4px 10px;border-radius:12px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:#f8fafc;color:var(--muted);font-weight:500}
 .metric-pill.selected{background:var(--primary);color:#fff;border-color:var(--primary)}
-.metric-pill-important{border-color:rgba(37,99,235,0.4); font-weight:600;}
-
-.metric-category-header{width:100%;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--primary);padding:10px 0 2px;border-bottom:2px solid rgba(37,99,235,.2);display:block;margin-bottom:6px}
+.metric-group{width:100%;margin-top:10px;margin-bottom:2px}
+.metric-group-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);padding:2px 0;border-bottom:1px solid var(--border);display:block;margin-bottom:4px}
+.metric-group:first-child{margin-top:4px}
+.metric-category-header{width:100%;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--primary);padding:6px 0 2px;border-bottom:2px solid rgba(37,99,235,.2);display:block;margin:10px 0 4px}
 
 /* ===== Click-to-select Tag Picker ===== */
 .tag-picker{display:flex;flex-wrap:wrap;gap:5px;padding:6px;border:1px solid var(--border);border-radius:6px;background:#fff;min-height:36px;cursor:default}
@@ -133,57 +124,51 @@ tr:hover td{background:#f8fafc}
 .tag-item:hover{border-color:var(--primary);color:var(--primary)}
 .tag-item.selected{background:var(--primary);color:#fff;border-color:var(--primary)}
 
-/* ===== Sidebar Layout for Tabs ===== */
-.tab-layout {display:flex; gap:20px; align-items:flex-start;}
-.tab-sidebar {width:340px; flex-shrink:0; display:flex; flex-direction:column; gap:16px; position:sticky; top:20px; max-height:calc(100vh - 120px); overflow-y:auto; padding-right:4px;}
-/* Scrollbar styles for sidebar */
-.tab-sidebar::-webkit-scrollbar {width:6px;}
-.tab-sidebar::-webkit-scrollbar-thumb {background-color:rgba(0,0,0,0.2); border-radius:10px;}
-.tab-main {flex:1; display:flex; flex-direction:column; gap:16px; min-width:0;}
-
 /* ===== Similar Patients overrides ===== */
-#panel-similar .tab-sidebar {width:380px;}
 #panel-similar .card>h2{font-size:20px}
-#panel-similar .sim-section-header{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--primary);display:block;margin-bottom:6px;margin-top:12px;}
-#panel-similar .sim-form{display:flex; flex-direction:column; gap:12px; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid rgba(226,232,240,.7);}
+#panel-similar .sim-section-header{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);display:block;margin-bottom:6px}
+#panel-similar .sim-form{display:grid;gap:10px 14px;align-items:start;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(226,232,240,.7);grid-template-columns:repeat(12,1fr)}
 #panel-similar .sim-form:last-of-type{border-bottom:none;margin-bottom:8px;padding-bottom:0}
-
-/* Keep metric cards following page scroll (desktop) */
-@media(min-width:1025px){
-  .tab-layout {
-    align-items: stretch;
-  }
-  #panel-reporting .tab-sidebar,
-  #panel-similar .tab-sidebar{
-    position: static;
-    overflow-y: visible;
-    max-height: none;
-  }
-  #pop-metric-card,
-  #sim-metric-card{
-    position: sticky;
-    top: 16px;
-    z-index: 30;
-    max-height: calc(100vh - 50px);
-    overflow-y: auto;
-  }
-  #pop-metric-card::-webkit-scrollbar,
-  #sim-metric-card::-webkit-scrollbar { width:4px; }
-  #pop-metric-card::-webkit-scrollbar-thumb,
-  #sim-metric-card::-webkit-scrollbar-thumb { background-color:rgba(0,0,0,0.15); border-radius:4px; }
+/* Demographics row spans */
+#panel-similar .sim-demo-age    {grid-column:span 2}
+#panel-similar .sim-demo-sex    {grid-column:span 2}
+#panel-similar .sim-demo-cond   {grid-column:span 2}
+#panel-similar .sim-demo-limb   {grid-column:span 2}
+#panel-similar .sim-demo-months {grid-column:span 4}
+#panel-similar .sim-demo-sport  {grid-column:span 6}
+#panel-similar .sim-demo-comp   {grid-column:span 6}
+/* Injury & Surgery row spans */
+#panel-similar .sim-inj-djump   {grid-column:span 3}
+#panel-similar .sim-inj-dkick   {grid-column:span 3}
+#panel-similar .sim-inj-mech    {grid-column:span 3}
+#panel-similar .sim-inj-graft   {grid-column:span 3}
+#panel-similar .sim-inj-proc    {grid-column:span 6}
+#panel-similar .sim-inj-surgeon {grid-column:span 6}
+/* History & Rehab row spans */
+#panel-similar .sim-hx-prev     {grid-column:span 3}
+#panel-similar .sim-hx-other    {grid-column:span 3}
+#panel-similar .sim-hx-freq     {grid-column:span 3}
+#panel-similar .sim-hx-sup      {grid-column:span 3}
+#panel-similar .sim-hx-family   {grid-column:span 6}
+#panel-similar .sim-hx-buttons  {grid-column:span 6}
+@media(max-width:900px){
+  #panel-similar .sim-form{grid-template-columns:repeat(6,1fr)}
+  #panel-similar .sim-demo-age,#panel-similar .sim-demo-sex,
+  #panel-similar .sim-demo-cond,#panel-similar .sim-demo-limb{grid-column:span 3}
+  #panel-similar .sim-demo-months,#panel-similar .sim-demo-sport,
+  #panel-similar .sim-demo-comp{grid-column:span 3}
+  #panel-similar .sim-inj-djump,#panel-similar .sim-inj-dkick,
+  #panel-similar .sim-inj-mech,#panel-similar .sim-inj-graft,
+  #panel-similar .sim-inj-proc,#panel-similar .sim-inj-surgeon{grid-column:span 3}
+  #panel-similar .sim-hx-prev,#panel-similar .sim-hx-other,
+  #panel-similar .sim-hx-freq,#panel-similar .sim-hx-sup{grid-column:span 3}
+  #panel-similar .sim-hx-family,#panel-similar .sim-hx-buttons{grid-column:span 3}
 }
 
 /* ===== Responsive ===== */
-@media(max-width:1024px){
-  .tab-layout{flex-direction:column}
-  .tab-sidebar{width:100% !important; position:static; max-height:none}
-  .pop-filter-grid{display:grid; grid-template-columns:1fr 1fr}
-  #panel-similar .sim-form{display:grid; grid-template-columns:1fr 1fr}
-  #pop-metric-card,
-  #sim-metric-card{position:static; top:auto}
-}
 @media(max-width:900px){
   .chart-grid{grid-template-columns:1fr}
+  .pop-filter-grid{grid-template-columns:1fr 1fr}
 }
 
 /* ===== Collapsible section toggle ===== */
@@ -196,7 +181,6 @@ tr:hover td{background:#f8fafc}
 .loading{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
 .spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-
 </style>
 </head>
 <body>
@@ -230,10 +214,8 @@ tr:hover td{background:#f8fafc}
 
     <!-- ====== TAB 1: Population Reporting ====== -->
     <div class="tab-panel active" id="panel-reporting">
-      <div class="tab-layout">
-        <!-- Sidebar -->
-        <div class="tab-sidebar">
-          <!-- Population Filters card -->
+
+      <!-- Population Filters card -->
       <div class="card pop-filter-card">
         <div class="pop-filter-header" onclick="togglePopFilter()">
           <h2 style="margin:0;font-size:16px">Population Filters</h2>
@@ -270,33 +252,35 @@ tr:hover td{background:#f8fafc}
               <select id="f-months"><option value="">All</option></select>
             </div>
           </div>
-          <div style="display:flex;gap:8px;margin-top:16px;position:sticky;bottom:-20px;background:#fff;padding:16px 20px;margin-left:-20px;margin-right:-20px;z-index:10;border-top:1px solid var(--border);border-radius:0 0 12px 12px">
-            <button class="btn btn-primary" style="flex:1;box-shadow:0 4px 6px -1px rgba(37,99,235,0.2)" onclick="applyFilters()">Apply Filters</button>
+          <div style="margin-top:12px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;flex:1">Select Metrics</div>
+              <button class="collapse-toggle" id="pop-metric-toggle" onclick="togglePopMetrics()">
+                <span class="chevron">▾</span> <span id="pop-metric-toggle-label">Hide</span>
+              </button>
+            </div>
+            <div id="pop-metric-body">
+              <div id="metric-selector" class="metric-pills"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:14px">
+            <button class="btn btn-primary" style="flex:1" onclick="applyFilters()">Apply Filters</button>
             <button class="btn btn-secondary" style="flex:1" onclick="resetFilters()">Reset</button>
           </div>
         </div>
       </div>
-      
 
-        </div><!-- /sidebar -->
-
-        <!-- Main Content -->
-        <div class="tab-main">
-          <div class="card">
+      <div class="kpi-row" id="kpi-container"></div>
+      <div class="card">
         <h2>Summary Statistics</h2>
         <div class="table-wrap"><table id="summary-table"><thead></thead><tbody></tbody></table></div>
       </div>
       <div class="chart-grid" id="chart-container"></div>
-        </div><!-- /main -->
-      </div><!-- /layout -->
     </div>
 
     <!-- ====== TAB 2: Similar Patients ====== -->
     <div class="tab-panel" id="panel-similar">
-      <div class="tab-layout">
-        <!-- Sidebar -->
-        <div class="tab-sidebar">
-          <div class="card">
+      <div class="card">
         <!-- Card header with collapse toggle -->
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
           <h2 style="margin:0;flex:1">Find Similar Patients</h2>
@@ -323,13 +307,6 @@ tr:hover td{background:#f8fafc}
               <button class="btn btn-secondary btn-sm" id="sim-clear-patient-btn" onclick="clearPatientId()" style="display:none">Clear patient</button>
               <span id="sim-patient-status" style="font-size:12px"></span>
             </div>
-            <div id="sim-autofill-note" style="display:none;margin-top:8px;font-size:12px;color:var(--muted)"></div>
-            <div id="sim-age-mismatch-warning" style="display:none;margin-top:8px;padding:8px 10px;border:1px solid rgba(245,158,11,.45);border-radius:6px;background:rgba(245,158,11,.12);color:#92400e;font-size:12px;line-height:1.45">
-              <div id="sim-age-mismatch-text"></div>
-              <button type="button" class="btn btn-secondary btn-sm" id="sim-reset-age-btn" onclick="resetSimilarAgeRangeToIndexPatient()" style="margin-top:6px;background:#fff3cd;border:1px solid rgba(245,158,11,.55);color:#92400e">
-                Reset to Patient Age Range
-              </button>
-            </div>
           </div>
 
           <span class="sim-section-header">Demographics</span>
@@ -352,49 +329,56 @@ tr:hover td{background:#f8fafc}
             <div class="form-group sim-demo-comp"><label>Competition Level</label><div class="tag-picker" id="tp-comp"></div></div>
           </div>
 
-          <details class="metric-details" style="margin-top:16px; border-bottom:1px solid var(--border)">
-            <summary class="metric-summary">
-              <span>Advanced Clinical Filters</span> <span style="font-size:16px;line-height:1;color:var(--muted)">▾</span>
-            </summary>
-            <div style="padding:16px 12px 12px 12px">
-              <span class="sim-section-header" style="margin-top:0">Injury &amp; Surgery</span>
-              <div class="sim-form">
-                <!-- Row 1: narrow fields -->
-                <div class="form-group sim-inj-djump"><label>Dominant Jump Leg</label><div class="tag-picker" id="tp-dom-jump"></div></div>
-                <div class="form-group sim-inj-dkick"><label>Dominant Kick Leg</label><div class="tag-picker" id="tp-dom-kick"></div></div>
-                <div class="form-group sim-inj-mech"><label>Injury Mechanism</label><div class="tag-picker" id="tp-mechanism"></div></div>
-                <div class="form-group sim-inj-graft"><label>Graft Type</label><div class="tag-picker" id="tp-graft"></div></div>
-                <!-- Row 2: wide fields -->
-                <div class="form-group sim-inj-proc"><label>Surgical Procedure</label><div class="tag-picker" id="tp-procedure"></div></div>
-                <div class="form-group sim-inj-surgeon"><label>Surgeon</label><div class="tag-picker" id="tp-surgeon"></div></div>
-              </div>
+          <span class="sim-section-header">Injury &amp; Surgery</span>
+          <div class="sim-form">
+            <!-- Row 1: narrow fields -->
+            <div class="form-group sim-inj-djump"><label>Dominant Jump Leg</label><div class="tag-picker" id="tp-dom-jump"></div></div>
+            <div class="form-group sim-inj-dkick"><label>Dominant Kick Leg</label><div class="tag-picker" id="tp-dom-kick"></div></div>
+            <div class="form-group sim-inj-mech"><label>Injury Mechanism</label><div class="tag-picker" id="tp-mechanism"></div></div>
+            <div class="form-group sim-inj-graft"><label>Graft Type</label><div class="tag-picker" id="tp-graft"></div></div>
+            <!-- Row 2: wide fields -->
+            <div class="form-group sim-inj-proc"><label>Surgical Procedure</label><div class="tag-picker" id="tp-procedure"></div></div>
+            <div class="form-group sim-inj-surgeon"><label>Surgeon</label><div class="tag-picker" id="tp-surgeon"></div></div>
+          </div>
 
-              <span class="sim-section-header" style="margin-top:16px">History &amp; Rehabilitation</span>
-              <div class="sim-form" style="margin-bottom:8px">
-                <!-- Row 1: narrow -->
-                <div class="form-group sim-hx-prev"><label>Previous ACLR</label><div class="tag-picker" id="tp-prev-aclr"></div></div>
-                <div class="form-group sim-hx-other"><label>Other LL Injuries</label><div class="tag-picker" id="tp-other-ll"></div></div>
-                <div class="form-group sim-hx-freq"><label>Rehab Freq / Week</label><div class="tag-picker" id="tp-rehab-freq"></div></div>
-                <div class="form-group sim-hx-sup"><label>Rehab Supervised</label><div class="tag-picker" id="tp-rehab-sup"></div></div>
-                <!-- Row 2: wide -->
-                <div class="form-group sim-hx-family"><label>Family ACL History</label><div class="tag-picker" id="tp-family-acl"></div></div>
-              </div>
+          <span class="sim-section-header">History &amp; Rehabilitation</span>
+          <div class="sim-form" style="margin-bottom:8px">
+            <!-- Row 1: narrow -->
+            <div class="form-group sim-hx-prev"><label>Previous ACLR</label><div class="tag-picker" id="tp-prev-aclr"></div></div>
+            <div class="form-group sim-hx-other"><label>Other LL Injuries</label><div class="tag-picker" id="tp-other-ll"></div></div>
+            <div class="form-group sim-hx-freq"><label>Rehab Freq / Week</label><div class="tag-picker" id="tp-rehab-freq"></div></div>
+            <div class="form-group sim-hx-sup"><label>Rehab Supervised</label><div class="tag-picker" id="tp-rehab-sup"></div></div>
+            <!-- Row 2: wide -->
+            <div class="form-group sim-hx-family"><label>Family ACL History</label><div class="tag-picker" id="tp-family-acl"></div></div>
+            <div class="form-group sim-hx-buttons" style="display:flex;gap:8px;align-items:flex-end">
+              <button class="btn btn-primary" style="flex:1" onclick="findSimilar()">Search Similar</button>
+              <button class="btn btn-secondary" style="flex:1" onclick="clearSimilarFilters()">Clear All</button>
             </div>
-          </details>
-          <div style="display:flex;gap:8px;margin-top:16px;position:sticky;bottom:-20px;background:#fff;padding:16px 20px;margin-left:-20px;margin-right:-20px;z-index:10;border-top:1px solid var(--border);border-radius:0 0 12px 12px">
-            <button class="btn btn-primary" style="flex:1;box-shadow:0 4px 6px -1px rgba(37,99,235,0.2)" onclick="findSimilar()">Search Similar</button>
-            <button class="btn btn-secondary" style="flex:1" onclick="clearSimilarFilters()">Clear All</button>
           </div>
         </div><!-- /sim-filter-body -->
       </div>
 
+      <!-- Metric selector for Similar Patients (shared selectedMetrics array) -->
+      <div class="card" id="sim-metric-card" style="display:none">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+          <div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;flex:1">Select Metrics to Visualise</div>
+          <button class="collapse-toggle" id="sim-metric-toggle" onclick="toggleSimMetrics()">
+            <span class="chevron">▾</span> <span id="sim-metric-toggle-label">Hide</span>
+          </button>
+        </div>
+        <div id="sim-metric-body">
+          <div id="sim-metric-selector" class="metric-pills"></div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(226,232,240,.7);display:flex;align-items:center;gap:10px">
+            <button class="btn btn-primary btn-sm" onclick="findSimilar()" style="display:flex;align-items:center;gap:5px">
+              <span style="font-size:14px">↻</span> Refresh Charts
+            </button>
+            <span style="font-size:12px;color:var(--muted)">Update visualisations without changing the patient filters above.</span>
+          </div>
+        </div>
+      </div>
 
-        </div><!-- /sidebar -->
-
-        <!-- Main Content -->
-        <div class="tab-main">
-          <!-- Distribution charts for similar cohort -->
-          <div class="card" id="sim-chart-card" style="display:none">
+      <!-- Distribution charts for similar cohort -->
+      <div class="card" id="sim-chart-card" style="display:none">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap">
           <h2 style="margin:0;flex:1;white-space:nowrap">Metric Distributions — Similar Cohort</h2>
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
@@ -417,9 +401,21 @@ tr:hover td{background:#f8fafc}
         <div class="chart-grid" id="sim-chart-container"></div>
       </div>
 
-
-        </div><!-- /main -->
-      </div><!-- /layout -->
+      <!-- Patient table -->
+      <div class="card" id="similar-results" style="display:none">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+          <h2 style="margin:0;flex:1;white-space:nowrap">Most Similar Patients</h2>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <label style="font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">Show</label>
+            <input type="number" id="sim-top-n-table" value="15" min="5" max="200"
+              onchange="findSimilar()"
+              style="width:64px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;text-align:center">
+            <label style="font-size:12px;color:var(--muted);white-space:nowrap">patients</label>
+          </div>
+          <span id="similar-count" style="font-size:13px;color:var(--muted)"></span>
+        </div>
+        <div class="table-wrap"><table id="similar-table"><thead></thead><tbody></tbody></table></div>
+      </div>
     </div>
 
     <!-- ====== TAB 3: Recovery Trajectory ====== -->
@@ -463,23 +459,66 @@ tr:hover td{background:#f8fafc}
     </div>
 
   </div><!-- /content -->
-  <button id="fab-metrics" class="btn btn-primary" onclick="toggleFloatingMetrics()" style="position:fixed; bottom:24px; right:24px; z-index:1000; border-radius:30px; padding:12px 24px; font-size:15px; font-weight:600; box-shadow:0 6px 16px rgba(37,99,235,0.3); display:flex; gap:8px; align-items:center; transition: transform 0.2s;">
-    <span>📊 Select Metrics</span> <span id="fab-count" style="background:#fff;color:var(--primary);border-radius:12px;padding:2px 8px;font-size:12px;margin-left:4px">0</span>
-  </button>
-  
-  <div id="floating-metric-panel" class="card" style="display:none; position:fixed; bottom:80px; right:24px; width:380px; z-index:1000; box-shadow:0 12px 40px rgba(0,0,0,0.2); max-height:calc(100vh - 100px); flex-direction:column; padding:0; overflow:hidden;">
-    <div style="padding:16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border-radius:10px 10px 0 0">
-      <h3 style="margin:0;font-size:15px;color:var(--primary)">Select Metrics</h3>
-      <button class="btn btn-sm" onclick="toggleFloatingMetrics()" style="background:transparent;border:none;font-size:16px;color:var(--muted);cursor:pointer;padding:4px">✕</button>
-    </div>
-    <div id="global-metric-selector" style="overflow-y:auto; padding:16px; max-height:calc(100vh - 200px);"></div>
-    <div style="padding:16px; border-top:1px solid var(--border); background:#fff; border-radius:0 0 10px 10px">
-      <button class="btn btn-primary btn-block" onclick="applyMetricsGlobally()" style="box-shadow:0 4px 6px -1px rgba(37,99,235,0.2); margin-top:0">↻ Apply &amp; Refresh Charts</button>
-    </div>
-  </div>
 </div><!-- /main-layout -->
 
 <script>
+
+// ===== CLINICAL RANGES OBJECT =====
+const CLINICAL_RANGES = {
+  // LSI metrics — all use same thresholds
+  _LSI_DEFAULT: { green: 90, amber: 80 },
+  
+  // Absolute metrics
+  "rsidj_DL_": { min: 1.1, max: 1.4, unit: "m/s" },
+  "rsidj_left_SL_": { min: 0.50, max: 0.75 }, 
+  "rsidj_right_SL_": { min: 0.50, max: 0.75 },
+  "105rsi_DL_": { min: 0.75, max: 1.0 }, 
+  "105rsiL_SL_": { min: 0.40, max: 0.50 }, 
+  "105rsiR_SL_": { min: 0.40, max: 0.50 },
+  "jhDL_": { min: 31, max: 35 }, 
+  "jhSL_L_": { min: 13, max: 16 }, 
+  "jhSL_R_": { min: 13, max: 16 },
+  "HQcc_L_": { min: 0.55, max: 0.65 }, 
+  "HQcc_R_": { min: 0.55, max: 0.65 },
+  "HQec_L_": { min: 0.75, max: 0.85 }, 
+  "HQec_R_": { min: 0.75, max: 0.85 },
+  "ReExtIsoL_": { min: 3.0, max: 4.0 }, 
+  "ReExtIsoR_": { min: 3.0, max: 4.0 },
+  "ReExtConL_": { min: 2.5, max: 3.5 }, 
+  "ReExtConR_": { min: 2.5, max: 3.5 },
+  "ReFleIsoL_": { min: 1.75, max: 2.5 }, 
+  "ReFleIsoR_": { min: 1.75, max: 2.5 },
+  "ReLeft_": { min: 1.5, max: 2.0 }, 
+  "ReRight_": { min: 1.5, max: 2.0 },
+  "ReAdLeft_": { min: 0.45, max: 0.55 }, 
+  "ReAdRight_": { min: 0.45, max: 0.55 },
+  "ReAbLeft_": { min: 0.40, max: 0.50 }, 
+  "ReAbRight_": { min: 0.40, max: 0.50 },
+};
+
+// Helper function to get clinical range for a metric
+function getClinicalRange(metricCode) {
+  if (CLINICAL_RANGES[metricCode]) return CLINICAL_RANGES[metricCode];
+  if (metricCode.includes('LSI')) return CLINICAL_RANGES._LSI_DEFAULT;
+  return null;
+}
+
+// Helper function to classify value against clinical range
+function classifyValue(value, metricCode) {
+  const range = getClinicalRange(metricCode);
+  if (!range) return 'neutral';
+  
+  if (metricCode.includes('LSI')) {
+    if (value >= range.green) return 'good';
+    if (value >= range.amber) return 'warn';
+    return 'bad';
+  } else {
+    if (value >= range.min && value <= range.max) return 'good';
+    if ((value > range.max && value <= range.max * 1.15) || (value < range.min && value >= range.min * 0.85)) return 'warn';
+    return 'bad';
+  }
+}
+
 // ========================================================================
 // State
 // ========================================================================
@@ -698,24 +737,12 @@ async function init(){
   buildTagPicker('tp-rehab-freq', demographics.rehab_freq_opts);
   buildTagPicker('tp-rehab-sup',  demographics.rehab_supervised_opts);
   buildTagPicker('tp-family-acl', demographics.family_acl_opts);
-  document.getElementById('sim-patient-id').addEventListener('input', () => {
-    const currentId = document.getElementById('sim-patient-id').value.trim();
-    if(simIndexPatientContext && currentId !== simIndexPatientContext.id){
-      simIndexPatientContext = null;
-      setSimilarAutofillNote('');
-      hideSimilarAgeMismatchWarning();
-    }
-  });
-  document.getElementById('sim-age-min').addEventListener('input', () => {
-    validateSimilarAgeRangeAgainstIndexPatient(true);
-  });
-  document.getElementById('sim-age-max').addEventListener('input', () => {
-    validateSimilarAgeRangeAgainstIndexPatient(true);
-  });
 
-  // Build global metric selector panel
-  buildMetricSelectorUI('global-metric-selector');
-  syncAllMetricUIs();
+  // Build metric selector pills (Population Report)
+  buildMetricSelector();
+
+  // Build metric selector pills for Similar Patients (shares selectedMetrics)
+  buildSimMetricSelector();
 
   // Initial query
   applyFilters();
@@ -842,182 +869,70 @@ const METRIC_GROUPS = [
   ]},
 ];
 
-const CANONICAL_METRIC_ORDER = METRIC_GROUPS.flatMap(g => g.keys);
-function sortMetrics(arr){
-  return arr.slice().sort((a,b)=>{
-    const idxA = CANONICAL_METRIC_ORDER.indexOf(a);
-    const idxB = CANONICAL_METRIC_ORDER.indexOf(b);
-    return (idxA===-1?9999:idxA) - (idxB===-1?9999:idxB);
-  });
-}
-
-function buildMetricSelectorUI(containerId){
-  const container = document.getElementById(containerId);
-  if(!container) return;
+function buildGroupedPills(container, onToggle){
   container.innerHTML = '';
-  
-  const tagBoxId = containerId + '-tagbox';
-  const libBoxId = containerId + '-lib';
-  
-  // 1. TagBox Container
-  const tagBox = document.createElement('div');
-  tagBox.id = tagBoxId;
-  tagBox.className = 'selected-tagbox';
-  container.appendChild(tagBox);
-  
-  // 2. Library Toggle
-  const libToggle = document.createElement('button');
-  libToggle.className = 'btn btn-secondary btn-sm';
-  libToggle.style.marginTop = '8px';
-  libToggle.style.width = '100%';
-  libToggle.innerHTML = '➕ Traverse Metric Library';
-  container.appendChild(libToggle);
-  
-  // 3. Library Container
-  const libBox = document.createElement('div');
-  libBox.id = libBoxId;
-  libBox.style.display = 'none';
-  libBox.style.marginTop = '12px';
-  libBox.style.flexDirection = 'column';
-  libBox.style.gap = '0px';
-  libToggle.onclick = () => {
-    libBox.style.display = libBox.style.display === 'none' ? 'flex' : 'none';
-    libToggle.textContent = libBox.style.display === 'none' ? '➕ Traverse Metric Library' : '➖ Hide Library';
-  };
-  
-  // 4. Populate Library Nodes
   let lastCategory = null;
   METRIC_GROUPS.forEach(group => {
+    // Insert top-level category divider (Strength / Performance) if changed
     if(group.category !== lastCategory){
       const catHeader = document.createElement('span');
       catHeader.className = 'metric-category-header';
       catHeader.textContent = group.category;
-      libBox.appendChild(catHeader);
+      container.appendChild(catHeader);
       lastCategory = group.category;
     }
-
-    const details = document.createElement('details');
-    details.className = 'metric-details';
-    
-    const summary = document.createElement('summary');
-    summary.className = 'metric-summary';
-    summary.innerHTML = `<span>${group.label}</span> <span style="font-size:16px;line-height:1;color:var(--muted)">▾</span>`;
-    details.appendChild(summary);
-    
-    const content = document.createElement('div');
-    content.className = 'metric-details-content';
-
-    const actionRow = document.createElement('div');
-    actionRow.style.cssText = 'width:100%; display:flex; gap:16px; padding-bottom:10px; margin-bottom:6px; border-bottom:1px dashed var(--border)';
-    
-    const selAll = document.createElement('span');
-    selAll.textContent = '+ Select All';
-    selAll.style.cssText = 'font-size:12px;color:var(--primary);cursor:pointer;font-weight:700';
-    selAll.onclick = () => {
-      group.keys.forEach(k => {
-        if(METRIC_LABELS[k] && !selectedMetrics.includes(k)) selectedMetrics.push(k);
-      });
-      syncAllMetricUIs();
-    };
-    
-    const clearAll = document.createElement('span');
-    clearAll.textContent = '– Clear All';
-    clearAll.style.cssText = 'font-size:12px;color:var(--danger);cursor:pointer;font-weight:700';
-    clearAll.onclick = () => {
-      group.keys.forEach(k => {
-        selectedMetrics = selectedMetrics.filter(x => x !== k);
-      });
-      syncAllMetricUIs();
-    };
-    
-    actionRow.appendChild(selAll);
-    actionRow.appendChild(clearAll);
-    content.appendChild(actionRow);
-    
+    // Group wrapper
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'metric-group';
+    const groupLabel = document.createElement('span');
+    groupLabel.className = 'metric-group-label';
+    groupLabel.textContent = group.label;
+    groupDiv.appendChild(groupLabel);
+    // Pills within group
     group.keys.forEach(m => {
-      if(!METRIC_LABELS[m]) return;
-      
+      if(!METRIC_LABELS[m]) return; // skip if not in labels
       const pill = document.createElement('span');
-      pill.className = 'metric-pill';
-      pill.dataset.metric = m;
-      
-      const isImportant = m.includes('LSI') || m.includes('rsi') || m.includes('jh');
-      if (isImportant) {
-        pill.classList.add('metric-pill-important');
-      }
-
+      pill.className = 'metric-pill' + (selectedMetrics.includes(m) ? ' selected' : '');
       pill.textContent = metricLabel(m);
+      pill.dataset.metric = m;
       pill.onclick = () => {
         if(selectedMetrics.includes(m)){
           selectedMetrics = selectedMetrics.filter(x => x !== m);
+          pill.classList.remove('selected');
         } else {
           selectedMetrics.push(m);
+          pill.classList.add('selected');
         }
-        syncAllMetricUIs();
+        onToggle();
       };
-      content.appendChild(pill);
+      groupDiv.appendChild(pill);
     });
-    
-    details.appendChild(content);
-    libBox.appendChild(details);
+    container.appendChild(groupDiv);
   });
-  
-  container.appendChild(libBox);
 }
 
-function syncAllMetricUIs(){
-  ['global-metric-selector'].forEach(cid => {
-    const container = document.getElementById(cid);
-    if(!container) return;
-    
-    const tagBox = document.getElementById(cid + '-tagbox');
-    if(tagBox){
-      tagBox.innerHTML = '';
-      if(selectedMetrics.length === 0){
-        tagBox.innerHTML = '<span style="color:var(--muted);font-size:13px;padding:4px">No metrics selected</span>';
-      } else {
-        selectedMetrics.forEach(m => {
-          const tag = document.createElement('span');
-          tag.className = 'tag-item';
-          tag.textContent = metricLabel(m);
-          tag.onclick = () => {
-             selectedMetrics = selectedMetrics.filter(x => x !== m);
-             syncAllMetricUIs();
-          };
-          tagBox.appendChild(tag);
-        });
-      }
-    }
-    
-    const libBox = document.getElementById(cid + '-lib');
-    if(libBox){
-      libBox.querySelectorAll('.metric-pill').forEach(pill => {
-        pill.classList.toggle('selected', selectedMetrics.includes(pill.dataset.metric));
-      });
-    }
+function buildMetricSelector(){
+  const container = document.getElementById('metric-selector');
+  buildGroupedPills(container, syncSimMetricSelector);
+}
+
+function buildSimMetricSelector(){
+  const container = document.getElementById('sim-metric-selector');
+  if(!container) return;
+  buildGroupedPills(container, syncPopMetricSelector);
+}
+
+function syncSimMetricSelector(){
+  document.querySelectorAll('#sim-metric-selector .metric-pill').forEach(p=>{
+    p.classList.toggle('selected', selectedMetrics.includes(p.dataset.metric));
   });
-
-  const fabCount = document.getElementById('fab-count');
-  if(fabCount) fabCount.textContent = selectedMetrics.length;
 }
 
-function toggleFloatingMetrics(){
-  const panel = document.getElementById('floating-metric-panel');
-  if(panel.style.display === 'none'){
-    panel.style.display = 'flex';
-  }else{
-    panel.style.display = 'none';
-  }
+function syncPopMetricSelector(){
+  document.querySelectorAll('#metric-selector .metric-pill').forEach(p=>{
+    p.classList.toggle('selected', selectedMetrics.includes(p.dataset.metric));
+  });
 }
-
-function applyMetricsGlobally(){
-  const activeTab = document.querySelector('.tab.active').dataset.tab;
-  if(activeTab === 'reporting') applyFilters();
-  else if(activeTab === 'similar') findSimilar();
-  else if(activeTab === 'recovery') loadRecovery();
-  toggleFloatingMetrics();
-}
-
 
 
 // ========================================================================
@@ -1043,7 +958,38 @@ function togglePopFilter(){
   chevron.style.transform = collapsed ? '' : 'rotate(-90deg)';
 }
 
-// Replaced legacy toggle metrics with global FAB
+// Toggle Population Report metric selector
+function togglePopMetrics(){
+  const body = document.getElementById('pop-metric-body');
+  const btn  = document.getElementById('pop-metric-toggle');
+  const lbl  = document.getElementById('pop-metric-toggle-label');
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? '' : 'none';
+  btn.classList.toggle('collapsed', !collapsed);
+  lbl.textContent = collapsed ? 'Hide' : 'Show';
+}
+
+// Toggle Similar Patients filter panel
+function toggleSimFilters(){
+  const body = document.getElementById('sim-filter-body');
+  const btn  = document.getElementById('sim-filter-toggle');
+  const lbl  = document.getElementById('sim-filter-toggle-label');
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? '' : 'none';
+  btn.classList.toggle('collapsed', !collapsed);
+  lbl.textContent = collapsed ? 'Show Filters' : 'Hide Filters';
+}
+
+// Toggle Similar Patients metric selector
+function toggleSimMetrics(){
+  const body = document.getElementById('sim-metric-body');
+  const btn  = document.getElementById('sim-metric-toggle');
+  const lbl  = document.getElementById('sim-metric-toggle-label');
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? '' : 'none';
+  btn.classList.toggle('collapsed', !collapsed);
+  lbl.textContent = collapsed ? 'Show' : 'Hide';
+}
 
 function resetFilters(){
   ['f-age-min','f-age-max','f-sex','f-sport','f-symptom','f-limb','f-months'].forEach(id=>{
@@ -1058,6 +1004,22 @@ async function applyFilters(){
   const r = await fetch('/api/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(filters)});
   const data = await r.json();
   document.getElementById('stat-filtered').textContent = data.n_records;
+  
+  // Create/clear warning banner container if not exists
+  let warningContainer = document.getElementById('warning-banner-container');
+  if (!warningContainer) {
+    warningContainer = document.createElement('div');
+    warningContainer.id = 'warning-banner-container';
+    const tabsBar = document.querySelector('.tabs');
+    tabsBar.parentNode.insertBefore(warningContainer, tabsBar.nextElementSibling);
+  }
+  
+  // Show warning if n < 5
+  if (data.n_records < 5 && data.n_records > 0) {
+    warningContainer.innerHTML = `<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;color:#92400e;font-weight:600;margin-bottom:16px">⚠ Caution: n = ${data.n_records}. Results may not be representative.</div>`;
+  } else {
+    warningContainer.innerHTML = '';
+  }
   renderReportingTab(data);
 }
 
@@ -1066,32 +1028,31 @@ async function applyFilters(){
 // ========================================================================
 function renderReportingTab(data){
   const summary = data.summary;
-  let metrics = Object.keys(summary);
-  metrics = sortMetrics(metrics);
+  const metrics = Object.keys(summary);
 
-  // The KPI header row has been explicitly discarded to prevent visual clutter
+  // KPI cards
+  const kpiHtml = metrics.slice(0,6).map(m=>{
+    const s = summary[m];
+    if(!s) return '';
+    const cls = classifyValue(s.median, m);
+    return `<div class="kpi ${cls}">
+      <div class="value">${s.median??'-'}</div>
+      <div class="label">${metricLabel(m)}<br>median (n=${s.n})</div>
+    </div>`;
+  }).join('');
+  document.getElementById('kpi-container').innerHTML = kpiHtml;
 
   // Summary table
   const thead = `<tr><th>Metric</th><th>N</th><th>Mean</th><th>SD</th><th>Min</th><th>P25</th><th>Median</th><th>P75</th><th>Max</th></tr>`;
-  let lastGroupLabelForTable = null;
-  const tbodyArr = [];
-  metrics.forEach(m=>{
+  const tbody = metrics.map(m=>{
     const s = summary[m];
-    if(!s) return;
-    
-    let groupInfo = { category: 'Other', label: 'Other Metrics' };
-    for(const g of METRIC_GROUPS){
-      if(g.keys.includes(m)){ groupInfo = g; break; }
-    }
-    
-    if(groupInfo.label !== lastGroupLabelForTable){
-      tbodyArr.push(`<tr><td colspan="9" style="background:#f1f5f9;color:var(--primary);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding:8px 12px;border-top:1px solid rgba(37,99,235,0.15)">${groupInfo.category} • ${groupInfo.label}</td></tr>`);
-      lastGroupLabelForTable = groupInfo.label;
-    }
-    
-    tbodyArr.push(`<tr><td><strong>${metricLabel(m)}</strong></td><td>${s.n}</td><td>${s.mean}</td><td>${s.std}</td><td>${s.min}</td><td>${s.p25}</td><td>${s.median}</td><td>${s.p75}</td><td>${s.max}</td></tr>`);
-  });
-  const tbody = tbodyArr.join('');
+    if(!s) return '';
+    const meanClass = classifyValue(s.mean, m);
+    const medianClass = classifyValue(s.median, m);
+    const meanCellClass = meanClass !== 'neutral' ? `class="lsi-cell lsi-${meanClass}"` : '';
+    const medianCellClass = medianClass !== 'neutral' ? `class="lsi-cell lsi-${medianClass}"` : '';
+    return `<tr><td><strong>${metricLabel(m)}</strong></td><td>${s.n}</td><td ${meanCellClass}>${s.mean}</td><td>${s.std}</td><td>${s.min}</td><td>${s.p25}</td><td ${medianCellClass}>${s.median}</td><td>${s.p75}</td><td>${s.max}</td></tr>`;
+  }).join('');
   document.querySelector('#summary-table thead').innerHTML = thead;
   document.querySelector('#summary-table tbody').innerHTML = tbody;
 
@@ -1102,32 +1063,9 @@ function renderReportingTab(data){
   Object.values(activeCharts).forEach(c=>c.destroy());
   activeCharts = {};
 
-  let lastGroupLabel = null;
   metrics.forEach(m=>{
     const s = summary[m];
     if(!s || !s.values || s.values.length===0) return;
-    
-    let groupInfo = { category: 'Other', label: 'Other Metrics' };
-    for(const g of METRIC_GROUPS){
-      if(g.keys.includes(m)){ groupInfo = g; break; }
-    }
-    if(groupInfo.label !== lastGroupLabel){
-       const header = document.createElement('h3');
-       header.style.gridColumn = '1 / -1';
-       header.style.marginTop = '16px';
-       header.style.marginBottom = '-4px';
-       header.style.fontSize = '15px';
-       header.style.fontWeight = '700';
-       header.style.letterSpacing = '0.5px';
-       header.style.textTransform = 'uppercase';
-       header.style.color = 'var(--primary)';
-       header.style.borderBottom = '2px solid rgba(37,99,235,0.2)';
-       header.style.paddingBottom = '4px';
-       header.textContent = `${groupInfo.category} • ${groupInfo.label}`;
-       chartContainer.appendChild(header);
-       lastGroupLabel = groupInfo.label;
-    }
-
     const box = document.createElement('div');
     box.className='chart-box';
     box.innerHTML=`<h3>${metricLabel(m)} (n=${s.n})</h3><canvas id="chart-${m}"></canvas>`;
@@ -1155,12 +1093,55 @@ function renderReportingTab(data){
       return mid>=90?'rgba(16,185,129,0.6)':mid>=80?'rgba(245,158,11,0.6)':'rgba(239,68,68,0.6)';
     });
 
+    // Build plugin annotations for clinical thresholds
+    let annotationPluginConfig = {};
+    if (isLSI) {
+      // LSI: green at 90, red at 80
+      annotationPluginConfig = {
+        annotations: {
+          line90: {
+            type: 'line',
+            xMin: 90, xMax: 90,
+            borderColor: 'rgba(16,185,129,0.8)',
+            borderWidth: 2,
+            borderDash: [5,5],
+            label: { display: true, content: ['90%'], position: 'end' }
+          },
+          line80: {
+            type: 'line',
+            xMin: 80, xMax: 80,
+            borderColor: 'rgba(239,68,68,0.8)',
+            borderWidth: 2,
+            borderDash: [5,5],
+            label: { display: true, content: ['80%'], position: 'end' }
+          }
+        }
+      };
+    } else {
+      // Non-LSI: shaded range if available
+      const range = getClinicalRange(m);
+      if (range && range.min !== undefined && range.max !== undefined) {
+        annotationPluginConfig = {
+          annotations: {
+            rangeBox: {
+              type: 'box',
+              xMin: range.min, xMax: range.max,
+              backgroundColor: 'rgba(34,197,94,0.1)',
+              borderColor: 'rgba(34,197,94,0.5)',
+              borderWidth: 1
+            }
+          }
+        };
+      }
+    }
+
     activeCharts[m] = new Chart(document.getElementById('chart-'+m),{
       type:'bar',
       data:{labels, datasets:[{data:counts,backgroundColor:barColors,borderRadius:3}]},
       options:{
-        plugins:{legend:{display:false},
-          annotation: isLSI ? undefined : undefined
+        plugins:{
+          legend:{display:false},
+          annotation: annotationPluginConfig
         },
         scales:{
           x:{title:{display:true,text:metricLabel(m)},ticks:{maxTicksLimit:8}},
@@ -1203,9 +1184,7 @@ function renderSimCharts(data, patientId){
   const arrowLegend = document.getElementById('sim-arrow-legend');
   if(arrowLegend) arrowLegend.style.display = patientId ? 'flex' : 'none';
 
-  let lastGroupLabel = null;
-  const sortedSelected = sortMetrics(selectedMetrics);
-  sortedSelected.forEach(m=>{
+  selectedMetrics.forEach(m=>{
     // Collect values from similar patients (exclude index patient for cohort bars)
     const cohortVals = [];
     let patientVal = null;
@@ -1269,28 +1248,6 @@ function renderSimCharts(data, patientId){
     const titleSuffix = patientVal !== null
       ? ` — Your Patient: ${patientVal.toFixed(1)}`
       : '';
-      
-    let groupInfo = { category: 'Other', label: 'Other Metrics' };
-    for(const g of METRIC_GROUPS){
-      if(g.keys.includes(m)){ groupInfo = g; break; }
-    }
-    if(groupInfo.label !== lastGroupLabel){
-       const header = document.createElement('h3');
-       header.style.gridColumn = '1 / -1';
-       header.style.marginTop = '16px';
-       header.style.marginBottom = '-4px';
-       header.style.fontSize = '15px';
-       header.style.fontWeight = '700';
-       header.style.letterSpacing = '0.5px';
-       header.style.textTransform = 'uppercase';
-       header.style.color = 'var(--primary)';
-       header.style.borderBottom = '2px solid rgba(37,99,235,0.2)';
-       header.style.paddingBottom = '4px';
-       header.textContent = `${groupInfo.category} • ${groupInfo.label}`;
-       chartContainer.appendChild(header);
-       lastGroupLabel = groupInfo.label;
-    }
-
     const box = document.createElement('div');
     box.className = 'chart-box';
     box.innerHTML = `<h3>${metricLabel(m)} — Similar Cohort (n=${cohortVals.length + (patientVal!==null?1:0)}${titleSuffix})</h3><canvas id="simchart-${m}"></canvas>`;
@@ -1382,71 +1339,18 @@ const PATIENT_FIELD_MAP = [
   { col: 'Injury_Limb',         type: 'tagpicker', id: 'tp-limb'       },
   { col: 'Post_Surgery_Progress',type: 'tagpicker', id: 'tp-months'     },
   { col: 'Competition_Level',   type: 'tagpicker', id: 'tp-comp'       },
+  { col: 'Dom_Jump_Leg',        type: 'tagpicker', id: 'tp-dom-jump'   },
+  { col: 'Dom_Kick_Leg',        type: 'tagpicker', id: 'tp-dom-kick'   },
+  { col: 'Injury_Mechanism',    type: 'tagpicker', id: 'tp-mechanism'  },
+  { col: 'Surgical_Procedure',  type: 'tagpicker', id: 'tp-procedure'  },
+  { col: 'Graft_Type',          type: 'tagpicker', id: 'tp-graft'      },
+  { col: 'Surgeon',              type: 'tagpicker', id: 'tp-surgeon'    },
+  { col: 'Previous_ACLR',       type: 'tagpicker', id: 'tp-prev-aclr'  },
+  { col: 'Other_LL_Injuries',   type: 'tagpicker', id: 'tp-other-ll'   },
+  { col: 'Rehab_Freq_per_Week', type: 'tagpicker', id: 'tp-rehab-freq' },
+  { col: 'Rehab_Supervised',    type: 'tagpicker', id: 'tp-rehab-sup'  },
+  { col: 'Family_ACL_History',  type: 'tagpicker', id: 'tp-family-acl' },
 ];
-let simIndexPatientContext = null; // { id: string, age: number|null }
-
-function hideSimilarAgeMismatchWarning(){
-  const box = document.getElementById('sim-age-mismatch-warning');
-  const txt = document.getElementById('sim-age-mismatch-text');
-  if(box) box.style.display = 'none';
-  if(txt) txt.textContent = '';
-}
-
-function showSimilarAgeMismatchWarning(message){
-  const box = document.getElementById('sim-age-mismatch-warning');
-  const txt = document.getElementById('sim-age-mismatch-text');
-  if(!box || !txt) return;
-  txt.textContent = message;
-  box.style.display = '';
-}
-
-function setSimilarAutofillNote(text){
-  const note = document.getElementById('sim-autofill-note');
-  if(!note) return;
-  if(!text){
-    note.textContent = '';
-    note.style.display = 'none';
-    return;
-  }
-  note.textContent = text;
-  note.style.display = '';
-}
-
-function validateSimilarAgeRangeAgainstIndexPatient(showWarning){
-  hideSimilarAgeMismatchWarning();
-  if(!simIndexPatientContext || simIndexPatientContext.age === null || simIndexPatientContext.age === undefined){
-    return true;
-  }
-  const patientId = document.getElementById('sim-patient-id').value.trim();
-  if(!patientId || patientId !== simIndexPatientContext.id){
-    return true;
-  }
-  const age = Number(simIndexPatientContext.age);
-  const minRaw = document.getElementById('sim-age-min').value;
-  const maxRaw = document.getElementById('sim-age-max').value;
-  const minVal = minRaw === '' ? null : Number(minRaw);
-  const maxVal = maxRaw === '' ? null : Number(maxRaw);
-  const outOfRange = (minVal !== null && age < minVal) || (maxVal !== null && age > maxVal);
-  if(outOfRange && showWarning){
-    showSimilarAgeMismatchWarning(
-      `Selected patient ${simIndexPatientContext.id} is age ${age}, but current age range is ${minVal ?? 'Any'}-${maxVal ?? 'Any'}. Update the range or click "Reset to Patient Age Range".`
-    );
-  }
-  return !outOfRange;
-}
-
-function resetSimilarAgeRangeToIndexPatient(){
-  if(!simIndexPatientContext || simIndexPatientContext.age === null || simIndexPatientContext.age === undefined){
-    return;
-  }
-  const age = Number(simIndexPatientContext.age);
-  const minAge = Math.max(14, age - 2);
-  const maxAge = Math.min(80, age + 2);
-  document.getElementById('sim-age-min').value = minAge;
-  document.getElementById('sim-age-max').value = maxAge;
-  hideSimilarAgeMismatchWarning();
-  setSimilarAutofillNote(`Age auto-set to +/-2 years around ${simIndexPatientContext.id} (age ${age}): ${minAge}-${maxAge}. You can edit this manually.`);
-}
 
 function setTagPickerValue(containerId, value){
   if(value === null || value === undefined) return;
@@ -1465,13 +1369,10 @@ async function confirmPatientId(){
   const pid = document.getElementById('sim-patient-id').value.trim();
   const statusEl = document.getElementById('sim-patient-status');
   const clearBtn = document.getElementById('sim-clear-patient-btn');
-  hideSimilarAgeMismatchWarning();
 
   if(!pid){
     statusEl.textContent = '';
     statusEl.style.color = '';
-    setSimilarAutofillNote('');
-    simIndexPatientContext = null;
     return;
   }
 
@@ -1484,8 +1385,6 @@ async function confirmPatientId(){
       statusEl.textContent = `✗ Patient "${pid}" not found`;
       statusEl.style.color = 'var(--danger)';
       clearBtn.style.display = 'none';
-      setSimilarAutofillNote('');
-      simIndexPatientContext = null;
       return;
     }
     const rows = await r.json();
@@ -1493,8 +1392,6 @@ async function confirmPatientId(){
       statusEl.textContent = `✗ No data for "${pid}"`;
       statusEl.style.color = 'var(--danger)';
       clearBtn.style.display = 'none';
-      setSimilarAutofillNote('');
-      simIndexPatientContext = null;
       return;
     }
 
@@ -1518,29 +1415,13 @@ async function confirmPatientId(){
     });
 
     const recordCount = rows.length;
-    statusEl.textContent = `✓ "${pid}" found (${recordCount} record${recordCount>1?'s':''}) — core demographics filled.`;
+    statusEl.textContent = `✓ "${pid}" found (${recordCount} record${recordCount>1?'s':''}) — filters filled. Adjust if needed, then click Search.`;
     statusEl.style.color = 'var(--success)';
     clearBtn.style.display = '';
-    simIndexPatientContext = {
-      id: pid,
-      age: (p.Age !== null && p.Age !== undefined && !isNaN(Number(p.Age))) ? Number(p.Age) : null
-    };
-    if(simIndexPatientContext.age !== null){
-      const minAge = document.getElementById('sim-age-min').value;
-      const maxAge = document.getElementById('sim-age-max').value;
-      setSimilarAutofillNote(
-        `Age auto-set to +/-2 years around ${pid} (age ${simIndexPatientContext.age}): ${minAge}-${maxAge}. You can edit this manually.`
-      );
-    } else {
-      setSimilarAutofillNote(`Core demographics auto-filled from ${pid}. Age was not available for auto-range.`);
-    }
-    validateSimilarAgeRangeAgainstIndexPatient(false);
 
   } catch(e) {
     statusEl.textContent = `Error: ${e.message}`;
     statusEl.style.color = 'var(--danger)';
-    setSimilarAutofillNote('');
-    simIndexPatientContext = null;
   }
 }
 
@@ -1549,9 +1430,6 @@ function clearPatientId(){
   document.getElementById('sim-patient-status').textContent = '';
   document.getElementById('sim-patient-status').style.color = '';
   document.getElementById('sim-clear-patient-btn').style.display = 'none';
-  setSimilarAutofillNote('');
-  hideSimilarAgeMismatchWarning();
-  simIndexPatientContext = null;
   clearSimilarFiltersOnly();
 }
 
@@ -1566,7 +1444,6 @@ function clearSimilarFiltersOnly(){
   });
   document.getElementById('sim-age-min').value = '';
   document.getElementById('sim-age-max').value = '';
-  hideSimilarAgeMismatchWarning();
 }
 
 function clearSimilarFilters(){
@@ -1575,9 +1452,6 @@ function clearSimilarFilters(){
   document.getElementById('sim-patient-status').textContent = '';
   document.getElementById('sim-patient-status').style.color = '';
   document.getElementById('sim-clear-patient-btn').style.display = 'none';
-  setSimilarAutofillNote('');
-  hideSimilarAgeMismatchWarning();
-  simIndexPatientContext = null;
   // Reset all filter selections
   clearSimilarFiltersOnly();
   // Hide results
@@ -1590,15 +1464,13 @@ function clearSimilarFilters(){
 
 async function findSimilar(){
   const patientId = document.getElementById('sim-patient-id').value.trim();
-  if(patientId && !validateSimilarAgeRangeAgainstIndexPatient(true)){
-    return;
-  }
   const topNChart = parseInt(document.getElementById('sim-top-n-chart').value) || 40;
+  const topNTable = parseInt(document.getElementById('sim-top-n-table').value) || 15;
   const body = {
     age_min:           document.getElementById('sim-age-min').value || null,
     age_max:           document.getElementById('sim-age-max').value || null,
     top_n_chart:       topNChart,
-    top_n_table:       0,
+    top_n_table:       topNTable,
     sex:               getTagPicker('tp-sex'),
     sport:             getTagPicker('tp-sport'),
     symptom:           getTagPicker('tp-symptom'),
@@ -1623,11 +1495,60 @@ async function findSimilar(){
   const r = await fetch('/api/similar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const data = await r.json();
 
+  // Show metric selector card
+  document.getElementById('sim-metric-card').style.display = 'block';
 
   // Render distribution charts
   renderSimCharts(data, patientId);
 
-  // The raw data table has been removed from the UI. Visual distribution charts represent the final output.
+  const container = document.getElementById('similar-results');
+  container.style.display = 'block';
+  const tableLabel = `(${data.n_filtered} matched filters — showing ${data.n_table} most similar by age)`;
+  document.getElementById('similar-count').textContent = tableLabel;
+
+  const tablePatients = data.table_patients || data.patients;
+  if(tablePatients.length===0){
+    document.querySelector('#similar-table thead').innerHTML = '';
+    document.querySelector('#similar-table tbody').innerHTML = '<tr><td style="text-align:center;padding:20px;color:var(--muted)">No matching patients found. Try broadening your criteria.</td></tr>';
+    return;
+  }
+
+  // Friendly column labels — demographic fields + all metric codes from METRIC_LABELS
+  const COL_LABELS = {
+    // Demographic / clinical fields
+    Patient_ID:'Patient ID', Age:'Age (yrs)', Sex:'Sex', Sport:'Sport',
+    Symptom:'Condition', Injury_Limb:'Injured Limb', Post_Surgery_Progress:'Post-Op (mo.)',
+    Height_cm:'Height (cm)', Weight_kg:'Weight (kg)',
+    Competition_Level:'Competition Level', Dom_Jump_Leg:'Dom. Jump Leg', Dom_Kick_Leg:'Dom. Kick Leg',
+    Injury_Mechanism:'Injury Mechanism', Surgical_Procedure:'Surgical Procedure',
+    Graft_Type:'Graft Type', Surgeon:'Surgeon',
+    Previous_ACLR:'Previous ACLR', Other_LL_Injuries:'Other LL Injuries',
+    Rehab_Freq_per_Week:'Rehab Freq/Week', Rehab_Supervised:'Rehab Supervised',
+    Family_ACL_History:'Family ACL History',
+    // Metric codes — use full clinical names from METRIC_LABELS
+    ...METRIC_LABELS,
+  };
+
+  const cols = Object.keys(tablePatients[0]);
+  const thead = '<tr>'+cols.map(c=>`<th>${COL_LABELS[c]||c.replace(/_/g,' ')}</th>`).join('')+'</tr>';
+  const tbody = tablePatients.map(p=>{
+    return '<tr>'+cols.map(c=>{
+      let v = p[c];
+      if(v===null||v===undefined) return '<td style="color:var(--muted)">—</td>';
+      if(c.includes('LSI')){
+        const num = parseFloat(v);
+        if(!isNaN(num)){
+          const cls = num>=90?'lsi-good':num>=80?'lsi-warn':'lsi-bad';
+          return `<td><span class="lsi-cell ${cls}">${num.toFixed(1)}</span></td>`;
+        }
+      }
+      if(typeof v==='number') v = Number.isInteger(v)?v:v.toFixed(1);
+      return `<td>${v}</td>`;
+    }).join('')+'</tr>';
+  }).join('');
+
+  document.querySelector('#similar-table thead').innerHTML = thead;
+  document.querySelector('#similar-table tbody').innerHTML = tbody;
 }
 
 // ========================================================================
