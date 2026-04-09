@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSVi — Harness Engineering Workflow Planning</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: #f5f5f5; color: #1a1a1a; line-height: 1.6;
+    padding: 2rem; max-width: 860px; margin: 0 auto;
+  }
+  h1 { font-size: 1.6rem; margin-bottom: 0.3rem; color: #111; }
+  .meta { font-size: 0.85rem; color: #666; margin-bottom: 2rem; border-bottom: 2px solid #ddd; padding-bottom: 1rem; }
+  .message { margin-bottom: 1.5rem; padding: 1.2rem 1.4rem; border-radius: 10px; }
+  .user { background: #e8f0fe; border-left: 4px solid #4285f4; }
+  .assistant { background: #fff; border-left: 4px solid #34a853; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .role { font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+  .user .role { color: #4285f4; }
+  .assistant .role { color: #34a853; }
+  .message p { margin-bottom: 0.7rem; }
+  .message p:last-child { margin-bottom: 0; }
+  strong { color: #111; }
+  code { background: #f0f0f0; padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.9em; }
+  pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; overflow-x: auto; margin: 0.7rem 0; font-size: 0.85em; line-height: 1.5; }
+  ol, ul { margin: 0.5rem 0 0.7rem 1.4rem; }
+  li { margin-bottom: 0.3rem; }
+  table { border-collapse: collapse; width: 100%; margin: 0.7rem 0; font-size: 0.9em; }
+  th, td { border: 1px solid #ddd; padding: 0.5rem 0.7rem; text-align: left; }
+  th { background: #f8f8f8; font-weight: 600; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>OSVi — Harness Engineering Workflow Planning</h1>
+<div class="meta">Conversation date: 8 April 2026 &nbsp;|&nbsp; Participants: Edward &amp; Claude</div>
+
+<!-- ============================================================ -->
+<!-- TURN 1 -->
+<!-- ============================================================ -->
+<div class="message user">
+  <div class="role">Edward</div>
+  <p>Please read feedback.txt. I would like to create a harness engineering workflow, and I need multiple agents (skills) to do this step by step so that we can polish our data. How do you reckon I need to do before I create agents?</p>
+</div>
+
+<div class="message assistant">
+  <div class="role">Claude</div>
+  <p><em>[Read feedback.txt — file not yet present. Reviewed full project structure including SKILL.md, DataDictionary.md, DataSummary.md, and the CSV database.]</em></p>
+
+  <p>Your <code>feedback.txt</code> outlines four pipeline stages: <strong>Trial</strong> (generate demo versions), <strong>Role</strong> (define audiences), <strong>Tasks</strong> (user scenarios to test against), and <strong>Evaluator</strong> (assess and rank the versions). This is essentially a harness engineering workflow for iteratively improving your dashboard demo.</p>
+
+  <p>Here's what I'd recommend doing <strong>before</strong> you create any of the agents/skills:</p>
+
+  <p><strong>1. Lock down the data foundation first.</strong> Your agents will be generating and evaluating dashboard versions against your biomechanics data. Before they can do that reliably, the CSV, the data dictionary, and the metric labels need to be fully consistent and stable. Right now you already have good documentation, but I'd suggest a quick audit pass — confirm the CSV column count matches the data dictionary (you have 155 columns in the CSV but the dictionary documents 141), verify the registration columns are all documented, and ensure <code>metric_labels.json</code> is complete. If an agent generates a dashboard variant that references a metric not in the labels file, things break silently.</p>
+
+  <p><strong>2. Define your audience personas concretely.</strong> Your feedback says "researchers, clinicians, patients ??" — that question mark is critical. Each audience has very different needs: a clinician wants quick red-flag triage and comparison to thresholds, a researcher wants filtering and statistical summaries, and a patient wants plain-language recovery trajectory. You need to decide which audiences are in scope for the demo, and write a short persona document for each one (what they care about, what they'd click on, what language level they expect). This becomes the input for the "Role" agent.</p>
+
+  <p><strong>3. Write out your test scenarios before building the Tasks agent.</strong> The Tasks agent needs concrete workflows to test against — not just vague goals like "easy to understand." I'd suggest writing 5–8 specific scenarios, something like: "A physiotherapist wants to show a 25-year-old male ACLR patient at 6 months post-op how his single-leg drop jump RSI compares to similar patients" or "A researcher filters for all female basketball players and exports population statistics." These become your ground-truth test cases. Without them, the evaluator has nothing objective to measure against.</p>
+
+  <p><strong>4. Define your evaluation criteria and scoring rubric.</strong> The Evaluator agent needs to know what "best" means. Is it clinical accuracy? Speed of finding information? Visual clarity? I'd suggest defining 4–6 criteria (e.g., clinical correctness, workflow efficiency, visual clarity, data accessibility, appropriate use of red-flag thresholds) and a simple scoring scale for each. This way the evaluator produces comparable, quantitative output rather than subjective prose.</p>
+
+  <p><strong>5. Version the current prototype as your baseline.</strong> Before the Trial agent starts generating variants, save the current <code>app.py</code> and <code>index.html</code> as an explicit "v0 baseline." Every variant the Trial agent produces should be a diff from this baseline, so the Evaluator can compare apples to apples.</p>
+
+  <p>In short: <strong>clean data → defined personas → concrete test scenarios → scoring rubric → versioned baseline.</strong> Once those five artefacts exist, each of your four agents has clear inputs and constraints, and the pipeline can run without ambiguity.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- TURN 2 -->
+<!-- ============================================================ -->
+<div class="message user">
+  <div class="role">Edward</div>
+  <p>How about folder structure for Claude environment? For example, where should I put my skills? Do I need to create different folders under <code>/.claude</code> for each step?</p>
+</div>
+
+<div class="message assistant">
+  <div class="role">Claude</div>
+  <p><em>[Checked current .claude folder structure and project skills/ folder.]</em></p>
+
+  <p>There are actually <strong>two different "skills" locations</strong> in play, and it's important to understand the difference:</p>
+
+  <p><strong>1. <code>/mnt/.claude/skills/</code></strong> — This is where Cowork's built-in skills live (docx, pdf, pptx, xlsx, etc.). These are read-only system skills. You can't and shouldn't modify these.</p>
+
+  <p><strong>2. <code>/mnt/OSVi_database_demo/skills/</code></strong> — This is inside your project folder. You've already been using it for your project-level SKILL.md and data dictionary. This is <strong>your space</strong> to work with.</p>
+
+  <p>For your harness engineering pipeline, I'd recommend organising your project's <code>skills/</code> folder to mirror your four pipeline stages, while keeping common reference material at the top level. Something like this:</p>
+
+  <pre>OSVi_database_demo/
+├── skills/
+│   ├── SKILL.md                          ← master project skill (already exists)
+│   ├── OSVi_Biomechanics_Demo_Database_DataDictionary.md  ← (already exists)
+│   │
+│   ├── harness/                          ← harness pipeline folder
+│   │   ├── 1_trial/
+│   │   │   └── SKILL.md                  ← instructions for generating demo variants
+│   │   ├── 2_role/
+│   │   │   └── SKILL.md                  ← audience personas (clinician, researcher, etc.)
+│   │   ├── 3_tasks/
+│   │   │   └── SKILL.md                  ← user scenarios &amp; test workflows
+│   │   └── 4_evaluator/
+│   │       └── SKILL.md                  ← scoring rubric &amp; evaluation criteria
+│   │
+│   └── shared/                           ← shared artefacts all agents reference
+│       ├── personas.md                   ← detailed audience persona definitions
+│       ├── test_scenarios.md             ← the 5–8 concrete test cases
+│       └── scoring_rubric.md             ← evaluation criteria &amp; scale</pre>
+
+  <p><strong>Why this structure works:</strong></p>
+
+  <p>Each numbered folder under <code>harness/</code> becomes a self-contained skill with its own <code>SKILL.md</code>. When you invoke a step, that agent reads its own SKILL.md for instructions, plus it can reference the <code>shared/</code> folder for common context like personas and test scenarios. The numbering makes the execution order explicit.</p>
+
+  <p>The <code>shared/</code> folder is key — it prevents duplication. The Trial agent needs to know the personas (to generate appropriate variants), the Tasks agent needs them too (to write scenarios from each persona's perspective), and the Evaluator references them when scoring. Rather than repeating this in every SKILL.md, they all point to <code>shared/personas.md</code>.</p>
+
+  <p>Your existing top-level <code>SKILL.md</code> stays as the master project context — it's already comprehensive and every agent should read it first before doing anything else.</p>
+
+  <p><strong>What you don't need to do:</strong> You don't need to create anything under <code>/.claude/skills/</code> — that's the system area. All your custom skills live in your project folder.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- TURN 3 -->
+<!-- ============================================================ -->
+<div class="message user">
+  <div class="role">Edward</div>
+  <p>If I am wrong, correct me:</p>
+  <ol>
+    <li>In tasks/, I just list provide several user scenarios inside</li>
+    <li>In evaluator/, I just write down what factors do we want to have a review</li>
+  </ol>
+  <p>Am I correct?</p>
+</div>
+
+<div class="message assistant">
+  <div class="role">Claude</div>
+  <p>You're on the right track, but I'd refine it a bit.</p>
+
+  <p><strong>Tasks — yes, but more structured than just a list.</strong> You're right that it's about user scenarios, but each scenario needs to be specific enough that an agent can actually <em>execute</em> it against a dashboard variant and determine pass/fail. So rather than "clinician checks patient recovery," you'd want something like: "A physiotherapist filters for male, ACLR, basketball, 6 months post-op, then looks at single-leg drop jump RSI LSI, and expects to see a red flag if it's below 80%." Each scenario should specify who the user is, what they do step by step, and what the expected outcome looks like. Think of them as test cases, not just descriptions.</p>
+
+  <p><strong>Evaluator — yes, but it needs a scoring rubric, not just a list of factors.</strong> Listing factors like "clarity" and "usefulness" is a start, but the agent won't produce consistent results unless each factor has a defined scale. For example: "Clinical accuracy — 1: incorrect thresholds or labels, 2: mostly correct but missing edge cases, 3: all thresholds and labels match the data dictionary." Without that scale, the evaluator will just write vague opinions each time it runs, and you can't meaningfully compare versions.</p>
+
+  <p>So to correct slightly:</p>
+
+  <p><strong>Tasks/SKILL.md</strong> should contain the scenarios <em>plus</em> instructions telling the agent how to turn those scenarios into structured test runs — what to check, how to record results, what format to output.</p>
+
+  <p><strong>Evaluator/SKILL.md</strong> should contain the factors <em>plus</em> the scoring rubric <em>plus</em> instructions on how to aggregate scores across scenarios and produce a final ranking of the demo versions.</p>
+
+  <p>The SKILL.md in each folder isn't just data — it's the agent's instruction manual. The scenarios and rubric can live as separate files alongside it (like <code>test_scenarios.md</code> and <code>scoring_rubric.md</code>), and the SKILL.md tells the agent how to use them.</p>
+</div>
+
+</body>
+</html>
