@@ -147,6 +147,7 @@ tr:hover td{background:#f8fafc}
 #panel-similar .sim-section-header{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--primary);display:block;margin-bottom:6px;margin-top:12px;}
 #panel-similar .sim-form{display:flex; flex-direction:column; gap:12px; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid rgba(226,232,240,.7);}
 #panel-similar .sim-form:last-of-type{border-bottom:none;margin-bottom:8px;padding-bottom:0}
+#panel-similar .tab-main{padding-bottom:96px;}
 
 /* Keep metric cards following page scroll (desktop) */
 @media(min-width:1025px){
@@ -330,6 +331,14 @@ tr:hover td{background:#f8fafc}
                 Reset to Patient Age Range
               </button>
             </div>
+            <!-- Multi-assessment notification -->
+            <div id="sim-assessment-switcher" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid rgba(59,130,246,.3);border-radius:8px;background:rgba(59,130,246,.06);font-size:12px;line-height:1.5">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                <span style="font-weight:600;color:var(--primary)">Multiple Assessments</span>
+                <span id="sim-assessment-count" style="background:var(--primary);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:600"></span>
+              </div>
+              <div id="sim-assessment-months" style="color:var(--muted)"></div>
+            </div>
           </div>
 
           <span class="sim-section-header">Demographics</span>
@@ -415,6 +424,20 @@ tr:hover td{background:#f8fafc}
           <span style="font-size:12px;color:#991b1b;font-weight:600">Selected patient's position within the matched cohort</span>
         </div>
         <div class="chart-grid" id="sim-chart-container"></div>
+      </div>
+
+      <div class="card" id="sim-comparable-card" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <h2 style="margin:0">Comparable Cases - Top 10</h2>
+          <span id="sim-table-count" style="font-size:13px;color:var(--muted)"></span>
+        </div>
+        <div id="sim-method-desc" style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px"></div>
+        <div class="table-wrap">
+          <table id="sim-comparable-table">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
 
 
@@ -1193,7 +1216,7 @@ function renderSimCharts(data, patientId){
   }
 
   chartCard.style.display = 'block';
-  const baseLabel = `${data.n_filtered} matched filters — showing ${data.n_chart} most similar by age`;
+  const baseLabel = `${data.n_filtered} matched filters - showing ${data.n_chart} highest similarity scores`;
   const countLabel = data.patient_included
     ? `(${baseLabel} + index patient overlaid)`
     : `(${baseLabel})`;
@@ -1371,6 +1394,75 @@ function renderSimCharts(data, patientId){
   });
 }
 
+function renderComparableCases(data){
+  const card = document.getElementById('sim-comparable-card');
+  const methodEl = document.getElementById('sim-method-desc');
+  const countEl = document.getElementById('sim-table-count');
+  const theadEl = document.querySelector('#sim-comparable-table thead');
+  const tbodyEl = document.querySelector('#sim-comparable-table tbody');
+
+  const rows = (data && data.table_patients) ? data.table_patients : [];
+  if(!rows.length){
+    card.style.display = 'none';
+    theadEl.innerHTML = '';
+    tbodyEl.innerHTML = '';
+    return;
+  }
+
+  card.style.display = 'block';
+  const nComparable = data.n_comparable ?? data.n_filtered ?? rows.length;
+  countEl.textContent = `Showing ${rows.length} of ${nComparable} comparable cases`;
+
+  const method = data.similarity_method || {};
+  const notes = Array.isArray(method.notes) ? method.notes : [];
+  const topN = method.top_n || rows.length;
+  methodEl.innerHTML = `
+    <strong>How similarity is computed:</strong> ${method.description || 'Cases are ranked by proximity to your selected profile.'}
+    <br>Top ${topN} cases are sorted by <strong>Similarity Score (0-100)</strong>.
+    ${notes.length ? '<br>' + notes.map(n => `- ${n}`).join('<br>') : ''}
+  `;
+
+  const lsiCols = Object.keys(rows[0])
+    .filter(k => k.includes('LSI'))
+    .sort((a,b) => metricLabel(a).localeCompare(metricLabel(b)));
+
+  const baseHeaders = [
+    'Rank','Patient ID','Similarity','Match','Why This Match',
+    'Age','Sex','Sport','Condition','Month'
+  ];
+  theadEl.innerHTML = `
+    <tr>
+      ${baseHeaders.map(h => `<th>${h}</th>`).join('')}
+      ${lsiCols.map(c => `<th>${metricLabel(c)}</th>`).join('')}
+    </tr>
+  `;
+
+  const cell = (v) => (v===null || v===undefined || v==='') ? '-' : v;
+  const pct = (v) => (v===null || v===undefined || v==='') ? '-' : `${Number(v).toFixed(1)}%`;
+  const lsiCell = (v) => {
+    if(v===null || v===undefined || v==='') return '-';
+    const num = Number(v);
+    if(Number.isNaN(num)) return cell(v);
+    const cls = num >= 90 ? 'lsi-good' : (num >= 80 ? 'lsi-warn' : 'lsi-bad');
+    return `<span class="lsi-cell ${cls}">${num.toFixed(1)}</span>`;
+  };
+  tbodyEl.innerHTML = rows.map(r => `
+    <tr>
+      <td>${cell(r.Rank)}</td>
+      <td><strong>${cell(r.Patient_ID)}</strong></td>
+      <td>${pct(r.Similarity_Score)}</td>
+      <td>${cell(r.Similarity_Matched)}/${cell(r.Similarity_Active)}</td>
+      <td>${cell(r.Similarity_Why)}</td>
+      <td>${cell(r.Age)}</td>
+      <td>${cell(r.Sex)}</td>
+      <td>${cell(r.Sport)}</td>
+      <td>${cell(r.Symptom)}</td>
+      <td>${cell(r.Post_Surgery_Progress)}</td>
+      ${lsiCols.map(c => `<td>${lsiCell(r[c])}</td>`).join('')}
+    </tr>
+  `).join('');
+}
+
 // ── Patient ID auto-fill ────────────────────────────────────────────────────
 
 // Map CSV column name → { type, id }
@@ -1384,6 +1476,7 @@ const PATIENT_FIELD_MAP = [
   { col: 'Competition_Level',   type: 'tagpicker', id: 'tp-comp'       },
 ];
 let simIndexPatientContext = null; // { id: string, age: number|null }
+let simAllPatientRows = [];        // all assessment records for the current patient (for notification)
 
 function hideSimilarAgeMismatchWarning(){
   const box = document.getElementById('sim-age-mismatch-warning');
@@ -1461,10 +1554,54 @@ function setTagPickerValue(containerId, value){
   });
 }
 
+// Fills filters from a single patient record object
+function applyPatientRecordToFilters(p){
+  clearSimilarFiltersOnly();
+
+  // Fill age range to ±2 years of patient age
+  if(p.Age !== null && p.Age !== undefined){
+    document.getElementById('sim-age-min').value = Math.max(14, p.Age - 2);
+    document.getElementById('sim-age-max').value = Math.min(80, p.Age + 2);
+  }
+
+  // Fill tag pickers
+  PATIENT_FIELD_MAP.forEach(({col, id}) => {
+    if(p[col] !== null && p[col] !== undefined){
+      setTagPickerValue(id, p[col]);
+    }
+  });
+}
+
+// Builds and shows the multi-assessment notification (info only, no switcher)
+function buildAssessmentSwitcher(rows, activeMonth){
+  const switcher = document.getElementById('sim-assessment-switcher');
+  const countBadge = document.getElementById('sim-assessment-count');
+  const monthsContainer = document.getElementById('sim-assessment-months');
+
+  if(rows.length <= 1){
+    switcher.style.display = 'none';
+    return;
+  }
+
+  // Extract unique months, sorted ascending
+  const months = rows
+    .map(r => r.Post_Surgery_Progress)
+    .filter(m => m !== null && m !== undefined)
+    .map(m => Math.round(Number(m)))
+    .filter((v,i,a) => a.indexOf(v) === i)
+    .sort((a,b) => a - b);
+
+  countBadge.textContent = `${months.length} timepoints`;
+  monthsContainer.textContent = `Assessments available at: ${months.map(m => m + ' mo').join(', ')}. Demographics auto-filled from the latest (${Math.round(Number(activeMonth))} mo).`;
+
+  switcher.style.display = '';
+}
+
 async function confirmPatientId(){
   const pid = document.getElementById('sim-patient-id').value.trim();
   const statusEl = document.getElementById('sim-patient-status');
   const clearBtn = document.getElementById('sim-clear-patient-btn');
+  const switcher = document.getElementById('sim-assessment-switcher');
   hideSimilarAgeMismatchWarning();
 
   if(!pid){
@@ -1472,6 +1609,8 @@ async function confirmPatientId(){
     statusEl.style.color = '';
     setSimilarAutofillNote('');
     simIndexPatientContext = null;
+    simAllPatientRows = [];
+    if(switcher) switcher.style.display = 'none';
     return;
   }
 
@@ -1486,6 +1625,8 @@ async function confirmPatientId(){
       clearBtn.style.display = 'none';
       setSimilarAutofillNote('');
       simIndexPatientContext = null;
+      simAllPatientRows = [];
+      if(switcher) switcher.style.display = 'none';
       return;
     }
     const rows = await r.json();
@@ -1495,32 +1636,28 @@ async function confirmPatientId(){
       clearBtn.style.display = 'none';
       setSimilarAutofillNote('');
       simIndexPatientContext = null;
+      simAllPatientRows = [];
+      if(switcher) switcher.style.display = 'none';
       return;
     }
 
-    // Use the first (most recent or only) record
+    // Store all rows for this patient (sorted latest-first from backend)
+    simAllPatientRows = rows;
+
+    // Use the first record (latest assessment)
     const p = rows[0];
+    const latestMonth = Math.round(Number(p.Post_Surgery_Progress));
 
-    // Clear all filter tags first
-    clearSimilarFiltersOnly();
-
-    // Fill age range to ±2 years of patient age
-    if(p.Age !== null && p.Age !== undefined){
-      document.getElementById('sim-age-min').value = Math.max(14, p.Age - 2);
-      document.getElementById('sim-age-max').value = Math.min(80, p.Age + 2);
-    }
-
-    // Fill tag pickers
-    PATIENT_FIELD_MAP.forEach(({col, id}) => {
-      if(p[col] !== null && p[col] !== undefined){
-        setTagPickerValue(id, p[col]);
-      }
-    });
+    // Apply the latest record to filters
+    applyPatientRecordToFilters(p);
 
     const recordCount = rows.length;
-    statusEl.textContent = `✓ "${pid}" found (${recordCount} record${recordCount>1?'s':''}) — core demographics filled.`;
+    statusEl.textContent = recordCount > 1
+      ? `✓ "${pid}" found — latest assessment (${latestMonth} mo) auto-filled.`
+      : `✓ "${pid}" found (${latestMonth} mo) — demographics auto-filled.`;
     statusEl.style.color = 'var(--success)';
     clearBtn.style.display = '';
+
     simIndexPatientContext = {
       id: pid,
       age: (p.Age !== null && p.Age !== undefined && !isNaN(Number(p.Age))) ? Number(p.Age) : null
@@ -1529,11 +1666,15 @@ async function confirmPatientId(){
       const minAge = document.getElementById('sim-age-min').value;
       const maxAge = document.getElementById('sim-age-max').value;
       setSimilarAutofillNote(
-        `Age auto-set to +/-2 years around ${pid} (age ${simIndexPatientContext.age}): ${minAge}-${maxAge}. You can edit this manually.`
+        `Age auto-set to ±2 years around ${pid} (age ${simIndexPatientContext.age}): ${minAge}-${maxAge}.`
       );
     } else {
-      setSimilarAutofillNote(`Core demographics auto-filled from ${pid}. Age was not available for auto-range.`);
+      setSimilarAutofillNote(`Core demographics auto-filled from ${pid}.`);
     }
+
+    // Build the multi-assessment switcher (only shows if >1 record)
+    buildAssessmentSwitcher(rows, latestMonth);
+
     validateSimilarAgeRangeAgainstIndexPatient(false);
 
   } catch(e) {
@@ -1541,6 +1682,8 @@ async function confirmPatientId(){
     statusEl.style.color = 'var(--danger)';
     setSimilarAutofillNote('');
     simIndexPatientContext = null;
+    simAllPatientRows = [];
+    if(switcher) switcher.style.display = 'none';
   }
 }
 
@@ -1549,9 +1692,12 @@ function clearPatientId(){
   document.getElementById('sim-patient-status').textContent = '';
   document.getElementById('sim-patient-status').style.color = '';
   document.getElementById('sim-clear-patient-btn').style.display = 'none';
+  const switcher = document.getElementById('sim-assessment-switcher');
+  if(switcher) switcher.style.display = 'none';
   setSimilarAutofillNote('');
   hideSimilarAgeMismatchWarning();
   simIndexPatientContext = null;
+  simAllPatientRows = [];
   clearSimilarFiltersOnly();
 }
 
@@ -1575,15 +1721,17 @@ function clearSimilarFilters(){
   document.getElementById('sim-patient-status').textContent = '';
   document.getElementById('sim-patient-status').style.color = '';
   document.getElementById('sim-clear-patient-btn').style.display = 'none';
+  const switcher = document.getElementById('sim-assessment-switcher');
+  if(switcher) switcher.style.display = 'none';
   setSimilarAutofillNote('');
   hideSimilarAgeMismatchWarning();
   simIndexPatientContext = null;
+  simAllPatientRows = [];
   // Reset all filter selections
   clearSimilarFiltersOnly();
   // Hide results
-  document.getElementById('similar-results').style.display = 'none';
-  document.getElementById('sim-metric-card').style.display = 'none';
   document.getElementById('sim-chart-card').style.display = 'none';
+  document.getElementById('sim-comparable-card').style.display = 'none';
   Object.values(simCharts).forEach(c=>c.destroy());
   simCharts = {};
 }
@@ -1598,7 +1746,7 @@ async function findSimilar(){
     age_min:           document.getElementById('sim-age-min').value || null,
     age_max:           document.getElementById('sim-age-max').value || null,
     top_n_chart:       topNChart,
-    top_n_table:       0,
+    top_n_table:       10,
     sex:               getTagPicker('tp-sex'),
     sport:             getTagPicker('tp-sport'),
     symptom:           getTagPicker('tp-symptom'),
@@ -1626,8 +1774,9 @@ async function findSimilar(){
 
   // Render distribution charts
   renderSimCharts(data, patientId);
+  renderComparableCases(data);
 
-  // The raw data table has been removed from the UI. Visual distribution charts represent the final output.
+  // Rendered outputs: distribution charts + ranked comparable-cases table.
 }
 
 // ========================================================================

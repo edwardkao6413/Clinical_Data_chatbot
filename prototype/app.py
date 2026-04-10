@@ -150,96 +150,230 @@ def api_query():
 @app.route("/api/similar", methods=["POST"])
 def api_similar():
     """
-    Find patients similar to a given profile.
+    Find and rank similar patients for a given profile.
     All list-type fields accept multiple values (multi-select).
-    Body: {
-        age_min, age_max, top_n,
-        sex (list), sport (list), symptom (list), injury_limb (list), months (list),
-        competition_level (list), dom_jump_leg (list), dom_kick_leg (list),
-        injury_mechanism (list), surgical_procedure (list), graft_type (list),
-        surgeon (list), previous_aclr (list), other_ll_injuries (list),
-        rehab_freq (list), rehab_supervised (list), family_acl (list)
-    }
     """
     body = request.json or {}
     age_min = int(body["age_min"]) if body.get("age_min") not in (None, "") else None
     age_max = int(body["age_max"]) if body.get("age_max") not in (None, "") else None
     top_n_chart = int(body.get("top_n_chart", 40))
-    top_n_table = int(body.get("top_n_table", 15))
+    top_n_table = int(body.get("top_n_table", 10))
 
     def multi_filter(df_, col, key):
         vals = body.get(key, [])
-        if isinstance(vals, str): vals = [vals]
+        if isinstance(vals, str):
+            vals = [vals]
         vals = [v for v in vals if v]
         if vals:
             df_ = df_[df_[col].isin(vals)]
         return df_
 
-    filtered = df.copy()
-    filtered = multi_filter(filtered, "Sex",              "sex")
-    filtered = multi_filter(filtered, "Sport",            "sport")
-    filtered = multi_filter(filtered, "Symptom",          "symptom")
-    filtered = multi_filter(filtered, "Injury_Limb",      "injury_limb")
-    filtered = multi_filter(filtered, "Competition_Level","competition_level")
-    filtered = multi_filter(filtered, "Dom_Jump_Leg",     "dom_jump_leg")
-    filtered = multi_filter(filtered, "Dom_Kick_Leg",     "dom_kick_leg")
-    filtered = multi_filter(filtered, "Injury_Mechanism", "injury_mechanism")
-    filtered = multi_filter(filtered, "Surgical_Procedure","surgical_procedure")
-    filtered = multi_filter(filtered, "Graft_Type",       "graft_type")
-    filtered = multi_filter(filtered, "Surgeon",          "surgeon")
-    filtered = multi_filter(filtered, "Previous_ACLR",    "previous_aclr")
-    filtered = multi_filter(filtered, "Other_LL_Injuries","other_ll_injuries")
-    filtered = multi_filter(filtered, "Rehab_Freq_per_Week","rehab_freq")
-    filtered = multi_filter(filtered, "Rehab_Supervised", "rehab_supervised")
-    filtered = multi_filter(filtered, "Family_ACL_History","family_acl")
+    def values_for_key(key):
+        vals = body.get(key, [])
+        if isinstance(vals, (str, int, float)):
+            vals = [vals]
+        return [str(v) for v in vals if v not in (None, "")]
 
-    # Months multi-select
+    filtered = df.copy()
+    filtered = multi_filter(filtered, "Sex", "sex")
+    filtered = multi_filter(filtered, "Sport", "sport")
+    filtered = multi_filter(filtered, "Symptom", "symptom")
+    filtered = multi_filter(filtered, "Injury_Limb", "injury_limb")
+    filtered = multi_filter(filtered, "Competition_Level", "competition_level")
+    filtered = multi_filter(filtered, "Dom_Jump_Leg", "dom_jump_leg")
+    filtered = multi_filter(filtered, "Dom_Kick_Leg", "dom_kick_leg")
+    filtered = multi_filter(filtered, "Injury_Mechanism", "injury_mechanism")
+    filtered = multi_filter(filtered, "Surgical_Procedure", "surgical_procedure")
+    filtered = multi_filter(filtered, "Graft_Type", "graft_type")
+    filtered = multi_filter(filtered, "Surgeon", "surgeon")
+    filtered = multi_filter(filtered, "Previous_ACLR", "previous_aclr")
+    filtered = multi_filter(filtered, "Other_LL_Injuries", "other_ll_injuries")
+    filtered = multi_filter(filtered, "Rehab_Freq_per_Week", "rehab_freq")
+    filtered = multi_filter(filtered, "Rehab_Supervised", "rehab_supervised")
+    filtered = multi_filter(filtered, "Family_ACL_History", "family_acl")
+
     months_vals = body.get("months", [])
-    if isinstance(months_vals, (str, int, float)): months_vals = [months_vals]
+    if isinstance(months_vals, (str, int, float)):
+        months_vals = [months_vals]
     months_vals = [int(m) for m in months_vals if m != "" and m is not None]
     if months_vals:
         filtered = filtered[filtered["Post_Surgery_Progress"].isin(months_vals)]
 
-    # Age range filter + sort by midpoint proximity
     if age_min is not None:
         filtered = filtered[filtered["Age"] >= age_min]
     if age_max is not None:
         filtered = filtered[filtered["Age"] <= age_max]
+
     midpoint = ((age_min or 14) + (age_max or 60)) / 2
     filtered = filtered.copy()
     filtered["_age_diff"] = (filtered["Age"] - midpoint).abs()
-    filtered = filtered.sort_values("_age_diff")
-
-    # Capture count after filters, before slicing
     n_filtered = len(filtered)
 
-    # Two separate slices: wider for charts, tighter for table
-    filtered_chart = filtered.head(top_n_chart)
-    filtered_table = filtered.head(top_n_table)
-
-    # Requested metrics for chart visualisation
     metrics = body.get("metrics", [])
     if isinstance(metrics, str):
         metrics = [metrics]
 
-    # Handle index patient (may or may not be in filtered set)
     patient_id = body.get("patient_id", None)
     index_patient_data = None
+    index_patient_for_scoring = None
     patient_included = False
+    if patient_id:
+        in_full = df[df["Patient_ID"] == patient_id].sort_values("Post_Surgery_Progress", ascending=False)
+        if len(in_full) > 0:
+            index_patient_data = in_full.iloc[0]
+            index_patient_for_scoring = in_full.iloc[0]
+
+    similarity_rules = [
+        {"label": "Sex", "col": "Sex", "key": "sex", "weight": 1.0},
+        {"label": "Sport", "col": "Sport", "key": "sport", "weight": 1.2},
+        {"label": "Condition", "col": "Symptom", "key": "symptom", "weight": 1.3},
+        {"label": "Injury Limb", "col": "Injury_Limb", "key": "injury_limb", "weight": 1.0},
+        {"label": "Competition Level", "col": "Competition_Level", "key": "competition_level", "weight": 0.8},
+        {"label": "Dominant Jump Leg", "col": "Dom_Jump_Leg", "key": "dom_jump_leg", "weight": 0.6},
+        {"label": "Dominant Kick Leg", "col": "Dom_Kick_Leg", "key": "dom_kick_leg", "weight": 0.6},
+        {"label": "Injury Mechanism", "col": "Injury_Mechanism", "key": "injury_mechanism", "weight": 0.8},
+        {"label": "Surgical Procedure", "col": "Surgical_Procedure", "key": "surgical_procedure", "weight": 1.1},
+        {"label": "Graft Type", "col": "Graft_Type", "key": "graft_type", "weight": 1.0},
+        {"label": "Surgeon", "col": "Surgeon", "key": "surgeon", "weight": 0.8},
+        {"label": "Previous ACLR", "col": "Previous_ACLR", "key": "previous_aclr", "weight": 0.6},
+        {"label": "Other LL Injuries", "col": "Other_LL_Injuries", "key": "other_ll_injuries", "weight": 0.6},
+        {"label": "Rehab Frequency", "col": "Rehab_Freq_per_Week", "key": "rehab_freq", "weight": 0.5},
+        {"label": "Rehab Supervised", "col": "Rehab_Supervised", "key": "rehab_supervised", "weight": 0.5},
+        {"label": "Family ACL History", "col": "Family_ACL_History", "key": "family_acl", "weight": 0.4},
+    ]
+
+    target_age = None
+    if index_patient_for_scoring is not None and not pd.isna(index_patient_for_scoring.get("Age")):
+        target_age = float(index_patient_for_scoring["Age"])
+    elif age_min is not None or age_max is not None:
+        target_age = midpoint
+
+    target_month = None
+    if index_patient_for_scoring is not None and not pd.isna(index_patient_for_scoring.get("Post_Surgery_Progress")):
+        target_month = float(index_patient_for_scoring["Post_Surgery_Progress"])
+    elif months_vals:
+        target_month = float(sum(months_vals) / len(months_vals))
+
+    for rule in similarity_rules:
+        vals = values_for_key(rule["key"])
+        if vals:
+            rule["targets"] = set(vals)
+        elif index_patient_for_scoring is not None and rule["col"] in index_patient_for_scoring.index and not pd.isna(index_patient_for_scoring[rule["col"]]):
+            rule["targets"] = {str(index_patient_for_scoring[rule["col"]])}
+        else:
+            rule["targets"] = set()
+
+    # Use all available LSI metrics for profile-to-profile similarity when index patient is provided.
+    lsi_metric_cols = [c for c in df.columns if "LSI" in c]
+    lsi_targets = {}
+    if index_patient_for_scoring is not None:
+        for c in lsi_metric_cols:
+            if c in index_patient_for_scoring.index and not pd.isna(index_patient_for_scoring[c]):
+                lsi_targets[c] = float(index_patient_for_scoring[c])
+
+    def score_row(row):
+        score_sum = 0.0
+        weight_sum = 0.0
+        matched = 0
+        active = 0
+        reasons = []
+
+        if target_age is not None and not pd.isna(row.get("Age")):
+            age_weight = 2.0
+            age_gap = abs(float(row["Age"]) - target_age)
+            age_component = max(0.0, 1.0 - min(age_gap / 15.0, 1.0))
+            score_sum += age_component * age_weight
+            weight_sum += age_weight
+            active += 1
+            if age_gap <= 2:
+                matched += 1
+                reasons.append("Age +/-2y")
+
+        if target_month is not None and not pd.isna(row.get("Post_Surgery_Progress")):
+            month_weight = 1.5
+            month_gap = abs(float(row["Post_Surgery_Progress"]) - target_month)
+            month_component = max(0.0, 1.0 - min(month_gap / 6.0, 1.0))
+            score_sum += month_component * month_weight
+            weight_sum += month_weight
+            active += 1
+            if month_gap <= 0.5:
+                matched += 1
+                reasons.append("Same month")
+
+        for rule in similarity_rules:
+            targets = rule["targets"]
+            if not targets:
+                continue
+            active += 1
+            weight_sum += rule["weight"]
+            val = None if rule["col"] not in row.index or pd.isna(row[rule["col"]]) else str(row[rule["col"]])
+            if val is not None and val in targets:
+                score_sum += rule["weight"]
+                matched += 1
+                reasons.append(rule["label"])
+
+        # Continuous similarity on all LSI metrics (only when index patient exists).
+        # Normalized by a 30-point tolerance per metric (0 diff => full score, >=30 diff => 0).
+        lsi_weight = 0.7
+        lsi_close_count = 0
+        lsi_used = 0
+        for col, target_val in lsi_targets.items():
+            if col not in row.index or pd.isna(row[col]):
+                continue
+            val = float(row[col])
+            gap = abs(val - target_val)
+            comp = max(0.0, 1.0 - min(gap / 30.0, 1.0))
+            score_sum += comp * lsi_weight
+            weight_sum += lsi_weight
+            active += 1
+            lsi_used += 1
+            if gap <= 5.0:
+                matched += 1
+                lsi_close_count += 1
+
+        if weight_sum <= 0:
+            return 0.0, 0, 0, "Broad cohort match"
+        similarity = round((score_sum / weight_sum) * 100, 1)
+        if lsi_used > 0:
+            reasons.insert(0, f"LSI close: {lsi_close_count}/{lsi_used}")
+        reason_text = ", ".join(reasons[:4]) if reasons else "Broad cohort match"
+        return similarity, matched, active, reason_text
+
+    ranked = filtered.copy()
+    if patient_id:
+        ranked = ranked[ranked["Patient_ID"] != patient_id]
+
+    if not ranked.empty:
+        scored = ranked.apply(lambda r: score_row(r), axis=1, result_type="expand")
+        ranked["Similarity_Score"] = scored[0]
+        ranked["Similarity_Matched"] = scored[1].astype(int)
+        ranked["Similarity_Active"] = scored[2].astype(int)
+        ranked["Similarity_Why"] = scored[3]
+    else:
+        ranked["Similarity_Score"] = []
+        ranked["Similarity_Matched"] = []
+        ranked["Similarity_Active"] = []
+        ranked["Similarity_Why"] = []
+
+    ranked = ranked.sort_values(["Similarity_Score", "_age_diff"], ascending=[False, True])
+    filtered_chart = ranked.head(top_n_chart)
+    filtered_table = ranked.head(top_n_table)
 
     if patient_id:
         in_chart = filtered_chart[filtered_chart["Patient_ID"] == patient_id]
         if len(in_chart) > 0:
             patient_included = True
         else:
-            in_full = df[df["Patient_ID"] == patient_id]
+            in_full = df[df["Patient_ID"] == patient_id].sort_values("Post_Surgery_Progress", ascending=False)
             if len(in_full) > 0:
-                index_patient_data = in_full.iloc[0]
-                # Inject index patient into chart slice only
+                in_full = in_full.head(1).copy()
+                in_full["Similarity_Score"] = None
+                in_full["Similarity_Matched"] = None
+                in_full["Similarity_Active"] = None
+                in_full["Similarity_Why"] = "Index patient"
                 filtered_chart = pd.concat([filtered_chart, in_full], ignore_index=True)
                 patient_included = True
 
-    # Select key columns for display (original + new registration columns)
     display_cols = [
         "Patient_ID", "Age", "Sex", "Sport", "Symptom", "Injury_Limb",
         "Post_Surgery_Progress",
@@ -251,32 +385,55 @@ def api_similar():
         "ExtIsoLSI_", "ExtConLSI_", "FleIsoLSI_", "FleConLSI_",
         "LSI_jhSL_", "LSI_rsidj_SL_", "LSI_triforhop_",
         "HQcc_L_", "HQcc_R_",
+        "Similarity_Score", "Similarity_Matched", "Similarity_Active", "Similarity_Why",
     ]
+    computed_cols = {"Similarity_Score", "Similarity_Matched", "Similarity_Active", "Similarity_Why"}
+    # Always include every LSI metric in comparable-case outputs.
+    for c in df.columns:
+        if "LSI" in c and c not in display_cols:
+            display_cols.append(c)
     for m in metrics:
         if m in df.columns and m not in display_cols:
             display_cols.append(m)
-    display_cols = [c for c in display_cols if c in df.columns]
+    display_cols = [c for c in display_cols if c in df.columns or c in computed_cols]
 
-    # Chart patients (wider slice) — all columns including metrics
-    chart_result = filtered_chart[display_cols].replace({float('nan'): None}).to_dict(orient="records")
+    chart_result = filtered_chart[display_cols].replace({float("nan"): None}).to_dict(orient="records")
+    table_result = filtered_table[display_cols].replace({float("nan"): None}).to_dict(orient="records")
+    for idx, rec in enumerate(table_result, start=1):
+        rec["Rank"] = idx
 
-    # Table patients (tighter slice) — same columns
-    table_result = filtered_table[display_cols].replace({float('nan'): None}).to_dict(orient="records")
+    def to_native(v):
+        if pd.isna(v):
+            return None
+        return v.item() if hasattr(v, "item") else v
 
-    # Build index_patient dict for separate overlay if not in chart cohort
     index_patient_resp = None
     if index_patient_data is not None:
-        index_patient_resp = {c: (None if pd.isna(index_patient_data[c]) else index_patient_data[c])
-                              for c in display_cols if c in index_patient_data.index}
+        index_patient_resp = {
+            c: to_native(index_patient_data[c])
+            for c in display_cols if c in index_patient_data.index
+        }
 
     return jsonify({
         "n_filtered": n_filtered,
-        "n_chart":    len(filtered_chart),
-        "n_table":    len(filtered_table),
-        "patients":   chart_result,   # used for charts (larger)
-        "table_patients": table_result, # used for the table (smaller)
+        "n_comparable": len(ranked),
+        "n_chart": len(filtered_chart),
+        "n_table": len(filtered_table),
+        "patients": chart_result,
+        "table_patients": table_result,
         "patient_included": patient_included,
         "index_patient": index_patient_resp,
+        "similarity_method": {
+            "top_n": top_n_table,
+            "description": "Similarity score combines weighted age/month proximity, weighted exact matches on selected demographic + clinical fields, and full LSI-profile closeness (when Patient ID is provided).",
+            "notes": [
+                "Age component: 2.0 * max(0, 1 - abs(age - target_age)/15).",
+                "Month component: 1.5 * max(0, 1 - abs(month - target_month)/6).",
+                "Categorical component: sum(weight_i * exact_match_i) across selected/profile fields.",
+                "LSI profile component (if Patient ID provided): for each LSI metric, 0.7 * max(0, 1 - abs(metric - target_metric)/30).",
+                "Final score = 100 * (sum of all components) / (sum of active weights)."
+            ],
+        },
     })
 
 # ---------------------------------------------------------------------------
@@ -433,6 +590,8 @@ def api_patient(patient_id):
     rows = df[df["Patient_ID"] == patient_id]
     if rows.empty:
         return jsonify({"error": f"Patient {patient_id} not found"}), 404
+    # Sort by Post_Surgery_Progress descending so the latest assessment is first
+    rows = rows.sort_values("Post_Surgery_Progress", ascending=False)
     return jsonify(rows.to_dict(orient="records"))
 
 # ---------------------------------------------------------------------------

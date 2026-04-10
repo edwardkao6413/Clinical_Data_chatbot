@@ -204,16 +204,23 @@ python app.py
 | `/` | GET | Serves `index.html` dashboard |
 | `/api/demographics` | GET | Returns filter options + total record/patient counts |
 | `/api/query` | POST | Filters data + returns summary statistics + histogram values |
-| `/api/similar` | POST | Finds closest patients by category matching + age proximity |
+| `/api/similar` | POST | Finds and ranks comparable patients using weighted profile similarity |
 | `/api/recovery` | POST | Returns population percentiles (P25/P50/P75) by post-surgery month |
 | `/api/chat` | POST | Proxies user message + data context to Claude API |
 | `/api/patient/<id>` | GET | Returns all rows for a specific patient ID |
 | `/api/columns` | GET | Returns all column names grouped by category |
 
-### Current similarity algorithm (basic)
-1. Hard-filter on any selected values across all 18 filter fields (multi-select, exact match)
-2. Rank remaining patients by absolute age difference from target
-3. Return top N closest (default 15)
+### Current similarity algorithm
+1. Hard-filter on any selected values across all Similar Patients fields (multi-select, exact match)
+2. Compute weighted similarity components:
+   - Age proximity: `2.0 * max(0, 1 - abs(age - target_age)/15)`
+   - Post-op month proximity: `1.5 * max(0, 1 - abs(month - target_month)/6)`
+   - Categorical exact-match sum across selected/profile fields
+   - If Patient ID is provided: all-available LSI profile closeness using
+     `0.7 * max(0, 1 - abs(metric - target_metric)/30)` for each LSI metric
+3. Normalize to `Similarity Score (0-100)`:
+   - `100 * (sum of active components) / (sum of active weights)`
+4. Return ranked comparable cases (default Top 10 table) plus wider cohort for distribution charts
 
 ### Similar Patients — available filters (all multi-select)
 **Demographics:** Sex, Sport, Condition (Symptom), Injury Limb, Post-Surgery Months, Competition Level
@@ -275,7 +282,7 @@ is stored in `skills/company-info/` — sourced from the osvi-cloud/osvi-claude-
 
 | Area | Current state | Planned improvement |
 |---|---|---|
-| Similarity scoring | Age distance only after exact category matching | Weighted multi-factor score across demographics + biomechanical profile |
+| Similarity scoring | Weighted multi-factor score (age, month, categorical, optional all-LSI profile if Patient ID provided) | Tune weights by persona/workflow; add optional UI toggle for profile-only vs demographic-prioritized matching |
 | Red flags | LSI threshold only | Add absolute metric thresholds (H:Q, RSI, relative torque) |
 | AI context | Summary stats only | RAG — load documents from `prototype/knowledge/` folder at startup |
 | Chatbot memory | Stateless per message | Pass full conversation history in each API call |
@@ -333,9 +340,15 @@ is stored in `skills/company-info/` — sourced from the osvi-cloud/osvi-claude-
 
 - **`.sim-form` vs `.patient-form`:** The Similar Patients filter grids use a dedicated `.sim-form` class (scoped under `#panel-similar`) with `align-items: start`. This is intentionally different from other tabs that use `.patient-form` with `align-items: end` (needed for Recovery Trajectory button alignment). Do not merge these classes.
 
-- **Age range filter:** The Similar Patients section uses `age_min` / `age_max` inputs (numeric, free text) instead of a dropdown. The similarity algorithm computes a midpoint and ranks by absolute age difference. When both fields are empty, the full age range (14–60) is used.
+- **Age range filter:** The Similar Patients section uses `age_min` / `age_max` inputs (numeric, free text) instead of a dropdown. The similarity algorithm uses age as a weighted proximity component (not the only ranking factor). When both fields are empty, the full age range (14–60) is used.
 
 - **`Previous_ACLR` normalisation:** Raw Registration values were normalised to `Yes`, `No`, `Other` only. Any free-text entry that was not exactly "Yes" or "No" was mapped to "Other" (33 rows affected). Apply similar normalisation if other free-text columns develop messy values.
+
+- **Comparable Cases table:** Similar Patients now includes a ranked comparable-cases table (default Top 10) with:
+  - `Similarity Score`, `Match`, and `Why This Match`
+  - Full clinical metric labels (from `metric_labels.json`)
+  - All LSI metrics shown and colour-coded by threshold.
+
 
 ---
 
